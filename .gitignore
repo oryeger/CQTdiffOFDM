@@ -1,0 +1,20 @@
+# Local experiment outputs / weights
+notebooks/experiments/cqt/
+experiments/cqt/
+examples/data_dir/
+
+
+# Torch / ML
+*.pt
+*.pth
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
