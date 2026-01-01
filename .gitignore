@@ -2,6 +2,7 @@
 notebooks/experiments/cqt/
 experiments/
 examples/
+outputs/
 
 
 # Torch / ML
