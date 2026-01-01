@@ -1,0 +1,34 @@
+2025-12-30 09:42:32,401 INFO    MainThread:4504 [wandb_setup.py:_flush():76] Loading settings from C:\Users\owner\.config\wandb\settings
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_setup.py:_flush():76] Loading settings from c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-42-24\wandb\settings
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train.py', 'program': 'c:\\Projects\\CQTdiffOFDM\\train.py'}
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_setup.py:_flush():76] Applying login settings: {'mode': 'offline'}
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_init.py:_log_setup():428] Logging user logs to c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-42-24\wandb\offline-run-20251230_094232-bic3h108\logs\debug.log
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_init.py:_log_setup():429] Logging internal logs to c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-42-24\wandb\offline-run-20251230_094232-bic3h108\logs\debug-internal.log
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_init.py:init():462] calling init triggers
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_init.py:init():465] wandb.init called with sweep_config: {}
+config: {'learning_rate': 0.0002, 'audio_len': 16384, 'sample_rate': 22050, 'batch_size': 4, 'dataset': 'maestro', 'sde_type': 'VE_elucidating', 'architecure': 'unet_CQT', 'num_steps': 35, 'ro': 13, 'sigma_max': 10, 'sigma_min': 1e-06, 'Schurn': 5, 'Snoise': 1, 'Stmin': 0, 'Stmax': 50, 'total_params': 15458368}
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [wandb_init.py:init():515] starting backend
+2025-12-30 09:42:32,403 INFO    MainThread:4504 [backend.py:_multiprocessing_setup():97] multiprocessing start_methods=spawn, using: spawn
+2025-12-30 09:42:32,473 INFO    MainThread:4504 [backend.py:ensure_launched():217] starting backend process...
+2025-12-30 09:42:32,536 INFO    MainThread:4504 [backend.py:ensure_launched():222] started backend process with pid: 2516
+2025-12-30 09:42:32,536 INFO    MainThread:4504 [wandb_init.py:init():525] backend started and connected
+2025-12-30 09:42:32,539 INFO    MainThread:4504 [wandb_init.py:init():596] updated telemetry
+2025-12-30 09:42:32,907 INFO    MainThread:4504 [wandb_init.py:init():662] starting run threads in backend
+2025-12-30 09:42:37,329 INFO    MainThread:4504 [wandb_run.py:_console_start():1898] atexit reg
+2025-12-30 09:42:37,329 INFO    MainThread:4504 [wandb_run.py:_redirect():1771] redirect: SettingsConsole.WRAP
+2025-12-30 09:42:37,329 INFO    MainThread:4504 [wandb_run.py:_redirect():1808] Wrapping output streams.
+2025-12-30 09:42:37,329 INFO    MainThread:4504 [wandb_run.py:_redirect():1832] Redirects installed.
+2025-12-30 09:42:37,329 INFO    MainThread:4504 [wandb_init.py:init():688] run started, returning control to user process
+2025-12-30 09:56:58,646 INFO    MainThread:4504 [wandb_run.py:_atexit_cleanup():1867] got exitcode: 255
+2025-12-30 09:56:58,646 INFO    MainThread:4504 [wandb_run.py:_restore():1839] restore
+2025-12-30 09:56:59,040 INFO    MainThread:4504 [wandb_run.py:_on_finish():1996] got exit ret: 
+2025-12-30 09:56:59,159 INFO    MainThread:4504 [wandb_run.py:_on_finish():1996] got exit ret: 
+2025-12-30 09:56:59,270 INFO    MainThread:4504 [wandb_run.py:_on_finish():1996] got exit ret: done: true
+exit_result {
+}
+local_info {
+}
+
+2025-12-30 09:57:00,398 INFO    MainThread:4504 [wandb_run.py:_footer_history_summary_info():3104] rendering history
+2025-12-30 09:57:00,398 INFO    MainThread:4504 [wandb_run.py:_footer_history_summary_info():3136] rendering summary

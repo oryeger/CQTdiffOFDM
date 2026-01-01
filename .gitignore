@@ -1,7 +1,7 @@
 # Local experiment outputs / weights
 notebooks/experiments/cqt/
-experiments/cqt/
-examples/data_dir/
+experiments/
+examples/
 
 
 # Torch / ML

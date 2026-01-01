@@ -1,0 +1,32 @@
+{
+    "os": "Windows-10-10.0.26100-SP0",
+    "python": "3.9.23",
+    "heartbeatAt": "2025-12-30T07:31:32.841103",
+    "startedAt": "2025-12-30T07:31:31.864042",
+    "docker": null,
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_count": 1,
+    "cpu_count": 24,
+    "cuda": null,
+    "args": [
+        "dset=maestro",
+        "model_dir=experiments/maestro_run1",
+        "device=cuda",
+        "num_workers=0",
+        "log=true",
+        "log_interval=2",
+        "save_interval=3"
+    ],
+    "state": "running",
+    "program": "c:\\Projects\\CQTdiffOFDM\\train.py",
+    "codePath": "train.py",
+    "git": {
+        "remote": "https://github.com/oryeger/CQTdiffOFDM.git",
+        "commit": "e685aee443f9cf22886e953b9c2bd736f9f10a15"
+    },
+    "email": "egerory@gmail.com",
+    "root": "C:/Projects/CQTdiffOFDM",
+    "host": "Asus060125A",
+    "username": "owner",
+    "executable": "C:\\Users\\owner\\anaconda3\\envs\\CQTdiffGPU\\python.exe"
+}

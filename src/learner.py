@@ -208,7 +208,7 @@ class Learner:
     def get_data_batch(self):
         #get one batch of data from the dataset and resample it (if necessary)
         
-        y=self.train_set.next()    
+        y = next(self.train_set) # OryEger y=self.train_set.next()
         y=y.to(self.device)
 
         if self.args.resample_factor!=1:

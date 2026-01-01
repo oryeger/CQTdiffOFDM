@@ -1,0 +1,7 @@
+- dset=maestro
+- model_dir=experiments/maestro_run1
+- device=cuda
+- num_workers=0
+- log=false
+- save_model=true
+- save_interval=2

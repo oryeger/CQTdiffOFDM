@@ -363,7 +363,11 @@ class TrainDataset(torch.utils.data.IterableDataset):
 
 
         self.train_samples=filelist.to_list()
-       
+        # OryEger
+        if hasattr(dset_args, "max_files") and dset_args.max_files is not None:
+            self.train_samples = self.train_samples[: int(dset_args.max_files)]
+        # ------------------
+
         self.seg_len=int(seg_len)
         self.fs=fs
 

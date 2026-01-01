@@ -11,7 +11,7 @@ model_dir: "experiments/cqt"
 architecture: "unet_CQT" #"unet"
 
 sample_rate: 22050
-audio_len: 65536
+audio_len: 16384 # OryEger - used to be 65536
 resample_factor: 2
 
 

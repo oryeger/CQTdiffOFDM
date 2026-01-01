@@ -1,0 +1,22 @@
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_setup.py:_flush():76] Loading settings from C:\Users\owner\.config\wandb\settings
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_setup.py:_flush():76] Loading settings from c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-31-14\wandb\settings
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_setup.py:_flush():76] Loading settings from environment variables: {}
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_setup.py:_flush():76] Inferring run settings from compute environment: {'program_relpath': 'train.py', 'program': 'c:\\Projects\\CQTdiffOFDM\\train.py'}
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_setup.py:_flush():76] Applying login settings: {'mode': 'offline'}
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_init.py:_log_setup():428] Logging user logs to c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-31-14\wandb\offline-run-20251230_093131-1b1kadx5\logs\debug.log
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_init.py:_log_setup():429] Logging internal logs to c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-31-14\wandb\offline-run-20251230_093131-1b1kadx5\logs\debug-internal.log
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_init.py:init():462] calling init triggers
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_init.py:init():465] wandb.init called with sweep_config: {}
+config: {'learning_rate': 0.0002, 'audio_len': 16384, 'sample_rate': 22050, 'batch_size': 4, 'dataset': 'maestro', 'sde_type': 'VE_elucidating', 'architecure': 'unet_CQT', 'num_steps': 35, 'ro': 13, 'sigma_max': 10, 'sigma_min': 1e-06, 'Schurn': 5, 'Snoise': 1, 'Stmin': 0, 'Stmax': 50, 'total_params': 15458368}
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [wandb_init.py:init():515] starting backend
+2025-12-30 09:31:31,867 INFO    MainThread:33572 [backend.py:_multiprocessing_setup():97] multiprocessing start_methods=spawn, using: spawn
+2025-12-30 09:31:31,872 INFO    MainThread:33572 [backend.py:ensure_launched():217] starting backend process...
+2025-12-30 09:31:31,926 INFO    MainThread:33572 [backend.py:ensure_launched():222] started backend process with pid: 5156
+2025-12-30 09:31:31,927 INFO    MainThread:33572 [wandb_init.py:init():525] backend started and connected
+2025-12-30 09:31:31,930 INFO    MainThread:33572 [wandb_init.py:init():596] updated telemetry
+2025-12-30 09:31:32,288 INFO    MainThread:33572 [wandb_init.py:init():662] starting run threads in backend
+2025-12-30 09:31:36,856 INFO    MainThread:33572 [wandb_run.py:_console_start():1898] atexit reg
+2025-12-30 09:31:36,857 INFO    MainThread:33572 [wandb_run.py:_redirect():1771] redirect: SettingsConsole.WRAP
+2025-12-30 09:31:36,857 INFO    MainThread:33572 [wandb_run.py:_redirect():1808] Wrapping output streams.
+2025-12-30 09:31:36,858 INFO    MainThread:33572 [wandb_run.py:_redirect():1832] Redirects installed.
+2025-12-30 09:31:36,858 INFO    MainThread:33572 [wandb_init.py:init():688] run started, returning control to user process

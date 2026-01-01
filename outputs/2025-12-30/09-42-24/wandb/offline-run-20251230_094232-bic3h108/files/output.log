@@ -1,0 +1,117 @@
+Step:  1 , Loss:  0.6025566458702087 , Time:  382.57755613327026
+Step:  2 , Loss:  0.5687801241874695 , Time:  13.322254180908203
+Step:  3 , Loss:  1.3359978199005127 , Time:  7.900008201599121
+Step:  4 , Loss:  1.4858976602554321 , Time:  7.229611158370972
+Step:  5 , Loss:  0.49996417760849 , Time:  7.704021215438843
+Step:  6 , Loss:  0.23249505460262299 , Time:  7.331791400909424
+Step:  7 , Loss:  0.5049172639846802 , Time:  9.903757810592651
+Step:  8 , Loss:  0.9868350028991699 , Time:  7.428526163101196
+Step:  9 , Loss:  0.7995618581771851 , Time:  8.589779376983643
+Step:  10 , Loss:  0.7298659682273865 , Time:  7.528541564941406
+Step:  11 , Loss:  0.5306740999221802 , Time:  8.06805968284607
+Step:  12 , Loss:  1.9235517978668213 , Time:  7.365193128585815
+Step:  13 , Loss:  1.4393104314804077 , Time:  8.052099466323853
+Step:  14 , Loss:  0.7717487812042236 , Time:  7.263399839401245
+Step:  15 , Loss:  0.8728866577148438 , Time:  7.578350305557251
+Step:  16 , Loss:  0.9851709604263306 , Time:  7.4567718505859375
+Step:  17 , Loss:  0.7355824112892151 , Time:  9.390604019165039
+Step:  18 , Loss:  0.32175418734550476 , Time:  7.35344386100769
+Step:  19 , Loss:  2.0079190731048584 , Time:  8.16611647605896
+Step:  20 , Loss:  1.8700679540634155 , Time:  7.386554718017578
+Step:  21 , Loss:  0.353799045085907 , Time:  7.699338674545288
+Step:  22 , Loss:  0.5594098567962646 , Time:  7.489467144012451
+Step:  23 , Loss:  0.5798856019973755 , Time:  9.135145425796509
+Step:  24 , Loss:  0.6608996391296387 , Time:  7.419775724411011
+Step:  25 , Loss:  0.6496675610542297 , Time:  8.61730408668518
+Step:  26 , Loss:  0.6355633735656738 , Time:  7.358022212982178
+Step:  27 , Loss:  0.8800110816955566 , Time:  7.85342812538147
+Step:  28 , Loss:  0.8123250603675842 , Time:  7.379945993423462
+Step:  29 , Loss:  1.6366493701934814 , Time:  7.952547073364258
+Step:  30 , Loss:  0.9968953132629395 , Time:  7.3590357303619385
+Step:  31 , Loss:  1.0041399002075195 , Time:  7.636159181594849
+Step:  32 , Loss:  0.7974472045898438 , Time:  7.554344654083252
+Step:  33 , Loss:  0.8369584083557129 , Time:  7.970749855041504
+Step:  34 , Loss:  0.795637845993042 , Time:  7.482324123382568
+Step:  35 , Loss:  0.7564839124679565 , Time:  8.495919704437256
+Step:  36 , Loss:  0.9275621175765991 , Time:  7.5434253215789795
+Step:  37 , Loss:  0.646028995513916 , Time:  7.978731632232666
+Step:  38 , Loss:  0.9129824638366699 , Time:  7.396893501281738
+Step:  39 , Loss:  0.42976242303848267 , Time:  7.860546827316284
+Step:  40 , Loss:  4.356279373168945 , Time:  7.279324054718018
+Step:  41 , Loss:  1.2989118099212646 , Time:  7.946848154067993
+Step:  42 , Loss:  1.8059656620025635 , Time:  7.499320983886719
+Step:  43 , Loss:  0.9789315462112427 , Time:  8.20055890083313
+Step:  44 , Loss:  0.4871748685836792 , Time:  7.382282018661499
+Step:  45 , Loss:  1.6530005931854248 , Time:  7.862281560897827
+Step:  46 , Loss:  0.8144068717956543 , Time:  7.328220844268799
+Step:  47 , Loss:  1.5469419956207275 , Time:  8.098325490951538
+Step:  48 , Loss:  1.2146574258804321 , Time:  7.50046181678772
+Step:  49 , Loss:  0.07706151902675629 , Time:  7.76637077331543
+Step:  50 , Loss:  1.0231561660766602 , Time:  8.273607969284058
+Step:  51 , Loss:  2.302860736846924 , Time:  8.005334854125977
+Step:  52 , Loss:  0.9534976482391357 , Time:  7.451146602630615
+Step:  53 , Loss:  0.590867280960083 , Time:  7.576380491256714
+Step:  54 , Loss:  1.0128148794174194 , Time:  7.462498426437378
+Step:  55 , Loss:  1.1292234659194946 , Time:  7.569494009017944
+Step:  56 , Loss:  0.5961669683456421 , Time:  7.503451585769653
+Step:  57 , Loss:  0.72151780128479 , Time:  7.860765218734741
+Step:  58 , Loss:  0.5326950550079346 , Time:  7.889504432678223
+Step:  59 , Loss:  2.1354193687438965 , Time:  8.266236305236816
+Step:  60 , Loss:  0.2980583906173706 , Time:  7.368543386459351
+Step:  61 , Loss:  1.7463743686676025 , Time:  7.691413402557373
+Traceback (most recent call last):
+  File "c:\Projects\CQTdiffOFDM\train.py", line 87, in <module>
+    main()
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\main.py", line 48, in decorated_main
+    _run_hydra(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 377, in _run_hydra
+    run_and_report(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 211, in run_and_report
+    return func()
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 378, in <lambda>
+    lambda: hydra.run(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\hydra.py", line 98, in run
+    ret = run_job(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\core\utils.py", line 160, in run_job
+    ret.return_value = task_function(task_cfg)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 84, in main
+    _main(args)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 80, in _main
+    run(args)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 74, in run
+    learner.train()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 179, in train
+    loss, vectorial_loss, sigma= self.train_step()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 270, in train_step
+    self.update_ema_weights()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 352, in update_ema_weights
+    ema_param -= (1 - self.ema_rate) * (ema_param - param.detach())
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "c:\Projects\CQTdiffOFDM\train.py", line 87, in <module>
+    main()
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\main.py", line 48, in decorated_main
+    _run_hydra(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 377, in _run_hydra
+    run_and_report(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 211, in run_and_report
+    return func()
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\utils.py", line 378, in <lambda>
+    lambda: hydra.run(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\_internal\hydra.py", line 98, in run
+    ret = run_job(
+  File "C:\Users\owner\anaconda3\envs\CQTdiffGPU\lib\site-packages\hydra\core\utils.py", line 160, in run_job
+    ret.return_value = task_function(task_cfg)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 84, in main
+    _main(args)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 80, in _main
+    run(args)
+  File "c:\Projects\CQTdiffOFDM\train.py", line 74, in run
+    learner.train()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 179, in train
+    loss, vectorial_loss, sigma= self.train_step()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 270, in train_step
+    self.update_ema_weights()
+  File "c:\Projects\CQTdiffOFDM\src\learner.py", line 352, in update_ema_weights
+    ema_param -= (1 - self.ema_rate) * (ema_param - param.detach())
+KeyboardInterrupt

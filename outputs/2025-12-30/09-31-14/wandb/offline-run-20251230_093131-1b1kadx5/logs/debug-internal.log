@@ -1,0 +1,20 @@
+2025-12-30 09:31:32,792 INFO    MainThread:5156 [internal.py:wandb_internal():90] W&B internal server running at pid: 5156, started at: 2025-12-30 09:31:32.792949
+2025-12-30 09:31:32,795 INFO    WriterThread:5156 [datastore.py:open_for_write():75] open: c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-31-14\wandb\offline-run-20251230_093131-1b1kadx5\run-1b1kadx5.wandb
+2025-12-30 09:31:32,795 DEBUG   HandlerThread:5156 [handler.py:handle_request():141] handle_request: run_start
+2025-12-30 09:31:32,838 DEBUG   HandlerThread:5156 [meta.py:__init__():35] meta init
+2025-12-30 09:31:32,838 DEBUG   HandlerThread:5156 [meta.py:__init__():49] meta init done
+2025-12-30 09:31:32,841 DEBUG   HandlerThread:5156 [meta.py:probe():209] probe
+2025-12-30 09:31:32,855 DEBUG   HandlerThread:5156 [meta.py:_setup_git():199] setup git
+2025-12-30 09:31:32,930 DEBUG   HandlerThread:5156 [meta.py:_setup_git():206] setup git done
+2025-12-30 09:31:32,930 DEBUG   HandlerThread:5156 [meta.py:_save_pip():53] save pip
+2025-12-30 09:31:32,930 DEBUG   HandlerThread:5156 [meta.py:_save_pip():67] save pip done
+2025-12-30 09:31:32,930 DEBUG   HandlerThread:5156 [meta.py:_save_conda():74] save conda
+2025-12-30 09:31:36,849 DEBUG   HandlerThread:5156 [meta.py:_save_conda():84] save conda done
+2025-12-30 09:31:36,849 DEBUG   HandlerThread:5156 [meta.py:probe():247] probe done
+2025-12-30 09:35:31,164 WARNING MainThread:5156 [internal.py:wandb_internal():153] Internal process interrupt: 1
+2025-12-30 09:35:32,342 WARNING MainThread:5156 [internal.py:wandb_internal():153] Internal process interrupt: 2
+2025-12-30 09:35:32,342 ERROR   MainThread:5156 [internal.py:wandb_internal():156] Internal process interrupted.
+2025-12-30 09:35:32,416 INFO    SenderThread:5156 [sender.py:finish():1110] shutting down sender
+2025-12-30 09:35:32,789 INFO    WriterThread:5156 [datastore.py:close():279] close: c:\Projects\CQTdiffOFDM\outputs\2025-12-30\09-31-14\wandb\offline-run-20251230_093131-1b1kadx5\run-1b1kadx5.wandb
+2025-12-30 09:35:32,789 INFO    HandlerThread:5156 [handler.py:finish():806] shutting down handler
+2025-12-30 09:35:32,789 INFO    MainThread:5156 [internal.py:handle_exit():80] Internal process exited
