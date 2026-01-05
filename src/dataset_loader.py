@@ -15,6 +15,11 @@ import torch
 #generator function. It reads the csv file with pandas and loads the largest audio segments from each recording. If extend=False, it will only read the segments with length>length_seg, trim them and yield them with no further processing. Otherwise, if the segment length is inferior, it will extend the length using concatenative synthesis.
 
 
+DEFAULT_METADATA_FILENAME = "maestro-v3.0.0.csv"
+
+def get_metadata_file(dset_args) -> str:
+    csv_name = getattr(dset_args, "csv_name", DEFAULT_METADATA_FILENAME)
+    return os.path.join(dset_args.path, csv_name)
 
 class ValDataset(torch.utils.data.Dataset):
 
@@ -23,7 +28,7 @@ class ValDataset(torch.utils.data.Dataset):
         path=dset_args.path
         years=dset_args.years_val
 
-        metadata_file=os.path.join(path,"maestro-v3.0.0.csv")
+        metadata_file = get_metadata_file(dset_args)
         metadata=pd.read_csv(metadata_file)
 
         metadata=metadata[metadata["year"].isin(years)]
@@ -37,9 +42,10 @@ class ValDataset(torch.utils.data.Dataset):
 
         print("Loading clean files")
         data_clean_loaded=[]
-        for ff in tqdm(range(0,len(val_samples))):  
+        for ff in tqdm(range(0,len(val_samples))):
+            # print("Reading:", val_samples[ff], flush=True) # OryEger
             data_clean, samplerate = sf.read(val_samples[ff])
-            if samplerate!=fs: 
+            if samplerate!=fs:
                 print(samplerate, fs)
                 print("!!!!WRONG SAMPLE RATe!!!")
             #Stereo to mono
@@ -49,7 +55,7 @@ class ValDataset(torch.utils.data.Dataset):
             #data_clean=data_clean/np.max(np.abs(data_clean))
             data_clean_loaded.append(data_clean)
             del data_clean
-    
+
         #framify data clean files
         print("Framifying clean files")
         seg_len=int(seg_len)
@@ -57,12 +63,12 @@ class ValDataset(torch.utils.data.Dataset):
         num_segments_max=500 #I do that to avoid having too large testing
         j=0
         for file in tqdm(data_clean_loaded):
-            #print(file) 
+            #print(file)
             #framify  arguments: seg_len, hop_size
             hop_size=int(seg_len)# no overlap
-    
-            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1) 
-            
+
+            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1)
+
             pointer=0
             for i in range(0,int(num_frames)):
                 #print(i, num_frames)
@@ -73,9 +79,9 @@ class ValDataset(torch.utils.data.Dataset):
                 self.segments_clean.append(segment)
                 j+=1
                 if j>500: break
-    
+
         del data_clean_loaded
-        
+
         #scales=np.random.uniform(-6,4,len(self.segments_clean))
 
     def __len__(self):
@@ -94,7 +100,7 @@ class TestDataset_fullpiece(torch.utils.data.Dataset):
         years=dset_args.years_test
         print(years)
 
-        metadata_file=os.path.join(path,"maestro-v3.0.0.csv")
+        metadata_file = get_metadata_file(dset_args)
         metadata=pd.read_csv(metadata_file)
 
         metadata=metadata[metadata["year"].isin(years)]
@@ -110,15 +116,16 @@ class TestDataset_fullpiece(torch.utils.data.Dataset):
         self.data_clean_loaded=[]
         if return_name: self.filenames=[]
         #maxsamples=2
-        for ff in tqdm(range(0,len(val_samples))):  
+        for ff in tqdm(range(0,len(val_samples))):
 
             #if ff>=maxsamples: break
             if return_name:
                 name=os.path.normpath(val_samples[ff]).split(os.path.sep)
                 self.filenames.append(name[-1])
 
+            # print("Reading:", val_samples[ff], flush=True) # OryEger
             data_clean, samplerate = sf.read(val_samples[ff])
-            if samplerate!=fs: 
+            if samplerate!=fs:
                 print(samplerate, fs)
                 print("!!!!WRONG SAMPLE RATe!!!")
             #Stereo to mono
@@ -128,9 +135,9 @@ class TestDataset_fullpiece(torch.utils.data.Dataset):
             #data_clean=data_clean/np.max(np.abs(data_clean))
             self.data_clean_loaded.append(data_clean)
             del data_clean
-    
+
         #framify data clean files
-        
+
         #scales=np.random.uniform(-6,4,len(self.segments_clean))
 
     def __len__(self):
@@ -154,14 +161,14 @@ class TestDataset_chunks_fromdir(torch.utils.data.Dataset):
         print("Loading clean files")
         data_clean_loaded=[]
         if return_name: self.filenames=[]
-        for ff in tqdm(range(0,len(val_samples))):  
+        for ff in tqdm(range(0,len(val_samples))):
 
             if return_name:
                 name=os.path.normpath(val_samples[ff]).split(os.path.sep)
                 self.filenames.append(name[-1])
 
             data_clean, samplerate = sf.read(val_samples[ff])
-            if samplerate!=fs: 
+            if samplerate!=fs:
                 print(samplerate, fs)
                 print("!!!!WRONG SAMPLE RATe!!!")
             #Stereo to mono
@@ -171,27 +178,27 @@ class TestDataset_chunks_fromdir(torch.utils.data.Dataset):
             #data_clean=data_clean/np.max(np.abs(data_clean))
             data_clean_loaded.append(data_clean)
             del data_clean
-    
+
         #framify data clean files
         print("Framifying clean files")
         seg_len=int(seg_len)
         self.segments_clean=[]
         for file in tqdm(data_clean_loaded):
-            #print(file) 
+            #print(file)
             #framify  arguments: seg_len, hop_size
             hop_size=int(seg_len)# no overlap
-    
-            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1) 
-            
+
+            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1)
+
             pointer=idx*fs
             #print(i, num_frames)
             segment=file[pointer:pointer+int(seg_len)]
             segment=segment.astype('float32')
 
             self.segments_clean.append(segment)
-    
+
         del data_clean_loaded
-        
+
         #scales=np.random.uniform(-6,4,len(self.segments_clean))
 
     def __len__(self):
@@ -211,7 +218,7 @@ class TestDataset_chunks(torch.utils.data.Dataset):
         path=dset_args.path
         years=dset_args.years_test
 
-        metadata_file=os.path.join(path,"maestro-v3.0.0.csv")
+        metadata_file = get_metadata_file(dset_args)
         metadata=pd.read_csv(metadata_file)
 
         metadata=metadata[metadata["year"].isin(years)]
@@ -226,14 +233,15 @@ class TestDataset_chunks(torch.utils.data.Dataset):
         print("Loading clean files")
         data_clean_loaded=[]
         if return_name: self.filenames=[]
-        for ff in tqdm(range(0,len(val_samples))):  
+        for ff in tqdm(range(0,len(val_samples))):
 
             if return_name:
                 name=os.path.normpath(val_samples[ff]).split(os.path.sep)
                 self.filenames.append(name[-1])
 
+            # print("Reading:", val_samples[ff], flush=True) # OryEger
             data_clean, samplerate = sf.read(val_samples[ff])
-            if samplerate!=fs: 
+            if samplerate!=fs:
                 print(samplerate, fs)
                 print("!!!!WRONG SAMPLE RATe!!!")
             #Stereo to mono
@@ -243,27 +251,27 @@ class TestDataset_chunks(torch.utils.data.Dataset):
             #data_clean=data_clean/np.max(np.abs(data_clean))
             data_clean_loaded.append(data_clean)
             del data_clean
-    
+
         #framify data clean files
         print("Framifying clean files")
         seg_len=int(seg_len)
         self.segments_clean=[]
         for file in tqdm(data_clean_loaded):
-            #print(file) 
+            #print(file)
             #framify  arguments: seg_len, hop_size
             hop_size=int(seg_len)# no overlap
-    
-            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1) 
-            
+
+            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1)
+
             pointer=idx*fs
             #print(i, num_frames)
             segment=file[pointer:pointer+int(seg_len)]
             segment=segment.astype('float32')
 
             self.segments_clean.append(segment)
-    
+
         del data_clean_loaded
-        
+
         #scales=np.random.uniform(-6,4,len(self.segments_clean))
 
     def __len__(self):
@@ -283,7 +291,7 @@ class TestDataset(torch.utils.data.Dataset):
         path=dset_args.path
         years=dset_args.years_test
 
-        metadata_file=os.path.join(path,"maestro-v3.0.0.csv")
+        metadata_file = get_metadata_file(dset_args)
         metadata=pd.read_csv(metadata_file)
 
         metadata=metadata[metadata["year"].isin(years)]
@@ -297,9 +305,10 @@ class TestDataset(torch.utils.data.Dataset):
 
         print("Loading clean files")
         data_clean_loaded=[]
-        for ff in tqdm(range(0,len(val_samples))):  
+        for ff in tqdm(range(0,len(val_samples))):
+            # print("Reading:", val_samples[ff], flush=True) # OryEger
             data_clean, samplerate = sf.read(val_samples[ff])
-            if samplerate!=fs: 
+            if samplerate!=fs:
                 print(samplerate, fs)
                 print("!!!!WRONG SAMPLE RATe!!!")
             #Stereo to mono
@@ -309,18 +318,18 @@ class TestDataset(torch.utils.data.Dataset):
             #data_clean=data_clean/np.max(np.abs(data_clean))
             data_clean_loaded.append(data_clean)
             del data_clean
-    
+
         #framify data clean files
         print("Framifying clean files")
         seg_len=int(seg_len)
         self.segments_clean=[]
         for file in tqdm(data_clean_loaded):
-            #print(file) 
+            #print(file)
             #framify  arguments: seg_len, hop_size
             hop_size=int(seg_len)# no overlap
-    
-            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1) 
-            
+
+            num_frames=np.floor(len(file)/hop_size - seg_len/hop_size +1)
+
             pointer=0
             for i in range(0,int(num_frames)):
                 #print(i, num_frames)
@@ -329,9 +338,9 @@ class TestDataset(torch.utils.data.Dataset):
                 segment=segment.astype('float32')
 
                 self.segments_clean.append(segment)
-    
+
         del data_clean_loaded
-        
+
         #scales=np.random.uniform(-6,4,len(self.segments_clean))
 
     def __len__(self):
@@ -340,7 +349,7 @@ class TestDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         return self.segments_clean[idx]
-        
+
 
 #Train dataset object
 
@@ -352,7 +361,7 @@ class TrainDataset(torch.utils.data.IterableDataset):
         path=dset_args.path
         years=dset_args.years
 
-        metadata_file=os.path.join(path,"maestro-v3.0.0.csv")
+        metadata_file = get_metadata_file(dset_args)
         metadata=pd.read_csv(metadata_file)
 
         metadata=metadata[metadata["year"].isin(years)]
@@ -376,8 +385,9 @@ class TrainDataset(torch.utils.data.IterableDataset):
             num=random.randint(0,len(self.train_samples)-1)
             #for file in self.train_samples:  
             file=self.train_samples[num]
+            # print("Reading:", file, flush=True) # OryEger
             data, samplerate = sf.read(file)
-            assert(samplerate==self.fs, "wrong sampling rate")
+            assert samplerate == self.fs, "wrong sampling rate"
             data_clean=data
             #Stereo to mono
             if len(data.shape)>1 :

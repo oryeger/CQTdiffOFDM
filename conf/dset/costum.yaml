@@ -1,0 +1,8 @@
+name: "costum"
+path: "C:\\Projects\\CQTdiffOFDM\\examples\\costum44100"
+csv_name: "costum.csv"
+years: [2003] # I will use only these years as the most recent ones are sampled at 48kHz
+years_test: [2010] #less years to make it quicker to compute, otherwise sampling is crazy long.
+#max_files: 50 # OryEger
+
+
