@@ -3,11 +3,14 @@ notebooks/experiments/cqt/
 experiments/
 examples/
 outputs/
+CQTdiffMatlab/database_ofdm/
+
 
 
 # Torch / ML
 *.pt
 *.pth
+*.wav
 
 # Jupyter
 .ipynb_checkpoints/

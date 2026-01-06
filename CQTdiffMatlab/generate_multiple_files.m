@@ -1,0 +1,18 @@
+clear;
+dateStr = datestr(datetime('today'), 'yyyy-mm-dd');
+outDir  = fullfile(pwd, 'database_ofdm', dateStr);
+if exist(outDir, 'dir') ~= 7
+    mkdir(outDir);
+end
+fprintf('Output directory:\n  %s\n', outDir);
+for i=1:100
+    generate_ofdm_maestro_like;
+
+    cfg.Nfft        = 2048;     % even
+cfg.cpLen       = round(9/128*cfg.Nfft); % can be 0
+cfg.dataRatio   = 0.8;      % ~80% data / 20% guards (positive bins)
+cfg.modType     = '16QAM';  % 'QPSK'|'16QAM'|'64QAM'|'256QAM'
+
+    close all;
+    movefile([outDir,'\ofdm_maestro_like_Nfft',num2str(cfg.Nfft),'_',cfg.modType,'_clean.wav'], [outDir,'\ofdm_maestro_like_Nfft',num2str(cfg.Nfft),'_',cfg.modType,'_clean',num2str(i),'.wav'])
+end
