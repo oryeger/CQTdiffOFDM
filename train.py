@@ -12,15 +12,22 @@ from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 import numpy as np
 
+
+def worker_init_fn(worker_id):
+    """Worker init function for DataLoader (must be at module level for Windows)."""
+    st = np.random.get_state()[2]
+    np.random.seed(st + worker_id)
+
+
 def run(args):
     """Loads all the modules and starts the training
-        
+
     Args:
       args:
         Hydra dictionary
 
     """
-        
+
     #some preparation of the hydra args
     args = OmegaConf.structured(OmegaConf.to_yaml(args))
 
@@ -35,32 +42,38 @@ def run(args):
         os.makedirs(args.model_dir)
 
     torch.backends.cudnn.benchmark = True
-        
-    def worker_init_fn(worker_id):                                                          
-        st=np.random.get_state()[2]
-        np.random.seed( st+ worker_id)
 
     print("Training on: ",args.dset.name)
 
     #prepare the dataset loader
-    import src.dataset_loader as dataset
-    dataset_train=dataset.TrainDataset( args.dset, args.sample_rate*args.resample_factor,args.audio_len*args.resample_factor)
-    train_loader=DataLoader(dataset_train,num_workers=args.num_workers, batch_size=args.batch_size,  worker_init_fn=worker_init_fn)
-    train_set = iter(train_loader)
-        
-    #prepare the model architecture
-    
-    if args.architecture=="unet_CQT":
-        from src.models.unet_cqt import Unet_CQT
-        model=Unet_CQT(args, device).to(device)
-    elif args.architecture=="unet_STFT":
-        from src.models.unet_stft import Unet_STFT
-        self.model=Unet_STFT(self.args, self.device).to(self.device)
-    elif args.architecture=="unet_1d":
-        from src.models.unet_1d import Unet_2d
-        self.model=Unet_1d(self.args, self.device).to(self.device)
+    if args.dset.name == "ofdm":
+        # Use OFDM dataset loader
+        from src.ofdm.ofdm_dataset_loader import OFDMTrainDataset
+        dataset_train = OFDMTrainDataset(args.dset, args.sample_rate * args.resample_factor, args.audio_len * args.resample_factor)
     else:
-        raise NotImplementedError
+        # Use standard audio dataset loader
+        import src.dataset_loader as dataset
+        dataset_train = dataset.TrainDataset(args.dset, args.sample_rate * args.resample_factor, args.audio_len * args.resample_factor)
+
+    train_loader = DataLoader(dataset_train, num_workers=args.num_workers, batch_size=args.batch_size, worker_init_fn=worker_init_fn)
+    train_set = iter(train_loader)
+
+    #prepare the model architecture
+
+    if args.architecture == "unet_CQT":
+        from src.models.unet_cqt import Unet_CQT
+        model = Unet_CQT(args, device).to(device)
+    elif args.architecture == "unet_STFT":
+        from src.models.unet_stft import Unet_STFT
+        model = Unet_STFT(args, device).to(device)
+    elif args.architecture == "unet_1d":
+        from src.models.unet_1d import Unet_1d
+        model = Unet_1d(args, device).to(device)
+    elif args.architecture == "unet_ofdm":
+        from src.models.unet_ofdm import Unet_OFDM
+        model = Unet_OFDM(args, device).to(device)
+    else:
+        raise NotImplementedError(f"Architecture {args.architecture} not supported")
 
     #prepare the optimizer
 

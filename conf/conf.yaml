@@ -142,6 +142,15 @@ inference:
   type_spec: "linear" #or "mel" for phase retrieval
   declipping:
     SDR: 3 #in dB
+    clip_ratio: null  # Alternative: specify clip ratio directly (e.g., 0.5)
+  xi_evm: 1.0  # EVM guidance weight for OFDM declipping
+
+# OFDM-specific parameters
+ofdm:
+  default_fft_size: 256
+  default_cp_ratio: 0.25
+  default_guard_band_ratio: 0.1
+  default_modulation: "16QAM"
 
 extra_info: "no extra info" 
 

@@ -1,0 +1,8 @@
+name: "ofdm"
+path: "C:\\Projects\\CQTdiffOFDM\\examples\\ofdm_custom"
+csv_name: "ofdm_dataset.csv"
+years: [2003]  # Training year
+years_test: [2010]  # Test year
+years_val: [2005]  # Validation year
+sample_rate: 44100  # Matches MAESTRO format
+#max_files: 1000  # Optional: limit number of files for faster iteration

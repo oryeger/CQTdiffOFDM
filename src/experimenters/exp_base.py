@@ -19,13 +19,18 @@ class Exp_Base():
             self.model=Unet_CQT(self.args, self.device).to(self.device)
             self.model=load_ema_weights(self.model,os.path.join(args.model_dir, args.inference.checkpoint))
         elif self.args.architecture=="unet_STFT":
+            from src.models.unet_stft import Unet_STFT
             self.model=Unet_STFT(self.args, self.device).to(self.device)
             self.model=load_ema_weights(self.model,os.path.join(args.model_dir, args.inference.checkpoint))
         elif self.args.architecture=="unet_1d":
             self.model=Unet_1d(self.args, self.device).to(self.device)
             self.model=load_ema_weights(self.model,os.path.join(args.model_dir, args.inference.checkpoint))
+        elif self.args.architecture=="unet_ofdm":
+            from src.models.unet_ofdm import Unet_OFDM
+            self.model=Unet_OFDM(self.args, self.device).to(self.device)
+            self.model=load_ema_weights(self.model,os.path.join(args.model_dir, args.inference.checkpoint))
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Architecture {self.args.architecture} not supported")
 
         if args.sde_type=='VE_elucidating':
             self.diff_parameters=VE_Sde_Elucidating(self.args.diffusion_parameters, self.args.diffusion_parameters.sigma_data)
