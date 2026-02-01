@@ -89,10 +89,12 @@ class OFDMTrainDataset(IterableDataset):
         filelist = filelist.map(lambda x: os.path.join(path, x), na_action='ignore')
 
         self.train_samples = filelist.to_list()
+        self.metadata = metadata.reset_index(drop=True)
 
         # Optional: limit number of files
         if hasattr(dset_args, "max_files") and dset_args.max_files is not None:
             self.train_samples = self.train_samples[:int(dset_args.max_files)]
+            self.metadata = self.metadata.iloc[:int(dset_args.max_files)]
 
         self.seg_len = int(seg_len)
         self.fs = fs
@@ -126,6 +128,82 @@ class OFDMTrainDataset(IterableDataset):
 
             segment = segment.astype('float32')
             yield segment
+
+
+class OFDMTrainDatasetWithSymbols(IterableDataset):
+    """
+    Training dataset for OFDM signals that also returns symbols for EVM loss.
+    
+    Yields (signal, symbols, ofdm_params) tuples.
+    Use this dataset with LearnerOFDM for constellation-aware training.
+    """
+
+    def __init__(self, dset_args, fs=44100, seg_len=131072, seed=42):
+        """
+        Args:
+            dset_args: Dataset arguments (hydra config)
+            fs: Expected sample rate (44100 Hz)
+            seg_len: Segment length for training
+            seed: Random seed
+        """
+        super(OFDMTrainDatasetWithSymbols).__init__()
+        random.seed(seed)
+        np.random.seed(seed)
+
+        path = dset_args.path
+        years = dset_args.years
+
+        metadata_file = get_metadata_file(dset_args)
+        self.metadata_df = pd.read_csv(metadata_file)
+
+        # Filter by year and split
+        self.metadata_df = self.metadata_df[self.metadata_df["year"].isin(years)]
+        self.metadata_df = self.metadata_df[self.metadata_df["split"] == "train"]
+        self.metadata_df = self.metadata_df.reset_index(drop=True)
+
+        filelist = self.metadata_df["audio_filename"]
+        filelist = filelist.map(lambda x: os.path.join(path, x), na_action='ignore')
+
+        self.train_samples = filelist.to_list()
+
+        # Optional: limit number of files
+        if hasattr(dset_args, "max_files") and dset_args.max_files is not None:
+            self.train_samples = self.train_samples[:int(dset_args.max_files)]
+            self.metadata_df = self.metadata_df.iloc[:int(dset_args.max_files)]
+
+        self.seg_len = int(seg_len)
+        self.fs = fs
+        self.path = path
+
+    def __iter__(self):
+        while True:
+            # Random file selection
+            num = random.randint(0, len(self.train_samples) - 1)
+            file = self.train_samples[num]
+            row = self.metadata_df.iloc[num]
+
+            # Load WAV file
+            data, samplerate = sf.read(file)
+
+            if samplerate != self.fs:
+                print(f"Warning: Sample rate mismatch: {samplerate} vs {self.fs}")
+
+            # Convert stereo to mono
+            if len(data.shape) > 1:
+                data = np.mean(data, axis=1)
+
+            # Pad if needed
+            if len(data) < self.seg_len:
+                data = np.pad(data, (0, self.seg_len - len(data)))
+
+            # Get segment (for EVM training, we need full signal, not random segment)
+            # Use the beginning of the signal where symbols are aligned
+            segment = data[:self.seg_len].astype('float32')
+
+            # Regenerate symbols from metadata
+            symbols, ofdm_params = regenerate_symbols_from_row(row)
+
+            yield segment, symbols, ofdm_params
 
 
 class OFDMTestDataset(Dataset):

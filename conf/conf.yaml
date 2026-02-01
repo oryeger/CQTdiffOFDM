@@ -17,8 +17,8 @@ resample_factor: 2
 
 
 #training functionality parameters
-num_workers: 4 #useful to speed up the dataloader
-device: "cpu" #it will be updated in the code, no worries
+num_workers: 0  # Set to 0 for Mac stability, 4 for Linux/Windows with CUDA
+device: "auto"  # Will auto-detect: CUDA > MPS (Mac) > CPU
 
 
 sashimi:
@@ -62,7 +62,8 @@ unet:
   conditioner:
    use_conditioning: True
   
-save_model: False
+save_model: True
+max_steps: 10000  # Maximum training steps (null = infinite)
 
 unet_STFT:
   use_embedding_y_lpf: False
@@ -151,6 +152,10 @@ ofdm:
   default_cp_ratio: 0.25
   default_guard_band_ratio: 0.1
   default_modulation: "16QAM"
+
+# EVM-aware training (only for OFDM dataset)
+# Set lambda_evm > 0 to enable constellation-aware training
+lambda_evm: 0.0  # Weight for EVM loss (0 = disabled, try 0.1-1.0)
 
 extra_info: "no extra info" 
 

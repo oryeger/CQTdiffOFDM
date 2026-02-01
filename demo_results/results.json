@@ -1,0 +1,22 @@
+[
+  {
+    "test_idx": 0,
+    "modulation": "QPSK",
+    "fft_size": 256,
+    "sdr": 5.501063346862793,
+    "evm_original": 4.883330427487579,
+    "evm_clipped": 50.564016884056215,
+    "evm_reconstructed": 99.7497766590739,
+    "improvement": -49.18575977501769
+  },
+  {
+    "test_idx": 1,
+    "modulation": "QPSK",
+    "fft_size": 256,
+    "sdr": 5.404043197631836,
+    "evm_original": 5.382023343352954,
+    "evm_clipped": 51.25452747958873,
+    "evm_reconstructed": 99.18844725199914,
+    "improvement": -47.933919772410405
+  }
+]

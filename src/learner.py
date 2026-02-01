@@ -172,6 +172,8 @@ class Learner:
                 Everything is logged into wandb
         """
         device = self.device
+        max_steps = getattr(self.args, 'max_steps', None)
+        
         while True:
             start=time.time()
             
@@ -204,6 +206,14 @@ class Learner:
             end=time.time()
 
             print("Step: ",self.step,", Loss: ",loss.item(),", Time: ",end-start)
+            
+            # Check if we've reached max_steps
+            if max_steps is not None and self.step >= max_steps:
+                print(f"\nReached max_steps ({max_steps}). Stopping training.")
+                if self.args.save_model:
+                    self.save_to_checkpoint()
+                    print(f"Final checkpoint saved.")
+                break
 
     def get_data_batch(self):
         #get one batch of data from the dataset and resample it (if necessary)

@@ -1,5 +1,5 @@
 name: "ofdm"
-path: "C:\\Projects\\CQTdiffOFDM\\examples\\ofdm_custom"
+path: "/Users/nicoleuzlaner/git/GenAI_OFDM/CQTdiffOFDM/examples/ofdm_custom"
 csv_name: "ofdm_dataset.csv"
 years: [2003]  # Training year
 years_test: [2010]  # Test year
