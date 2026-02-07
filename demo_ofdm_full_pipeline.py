@@ -9,8 +9,13 @@ This script demonstrates the full pipeline:
 5. Run declipping reconstruction
 6. Compare: Original → Clipped → Reconstructed (with EVM at each stage)
 
+Two model architectures available:
+- "simple": Unconditional model with inference-time guidance (default)
+- "conditional": Conditional model trained specifically for declipping with EVM-focused loss
+
 Usage:
     python demo_ofdm_full_pipeline.py --train_steps 1000 --num_test_samples 3
+    python demo_ofdm_full_pipeline.py --model_type conditional --train_steps 5000
 """
 
 import os
@@ -26,6 +31,15 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional
 import random
+
+# Import the new conditional declipping model
+try:
+    from src.models.unet_ofdm_declip import ConditionalUNet1DSimple
+    from src.ofdm.ofdm_declip_dataset import DeclipConfig, OFDMDeclipDataset, collate_declip_batch
+    HAS_CONDITIONAL_MODEL = True
+except ImportError:
+    HAS_CONDITIONAL_MODEL = False
+    print("Warning: Conditional model not available. Using simple model only.")
 
 
 # ============== PART 1: OFDM Signal Generation ==============
@@ -509,11 +523,227 @@ def denoise(model, x_noisy, sigma, diffusion):
         return x_denoised
 
 
+# ============== PART 4b: Conditional Declipping Model (NEW) ==============
+
+class ConditionalDiffusion:
+    """EDM-style diffusion for conditional model."""
+    
+    def __init__(self, sigma_min=1e-4, sigma_max=10.0, sigma_data=1.0, rho=7.0):
+        self.sigma_min = sigma_min
+        self.sigma_max = sigma_max
+        self.sigma_data = sigma_data
+        self.rho = rho
+    
+    def sample_sigma(self, batch_size, device):
+        """Sample training noise levels (log-normal)."""
+        log_sigma = torch.randn(batch_size, device=device) * 1.2 - 1.2
+        sigma = torch.exp(log_sigma)
+        return torch.clamp(sigma, self.sigma_min, self.sigma_max)
+    
+    def get_scalings(self, sigma):
+        """Get EDM scalings."""
+        c_skip = self.sigma_data ** 2 / (sigma ** 2 + self.sigma_data ** 2)
+        c_out = sigma * self.sigma_data / torch.sqrt(sigma ** 2 + self.sigma_data ** 2)
+        c_in = 1 / torch.sqrt(sigma ** 2 + self.sigma_data ** 2)
+        c_noise = torch.log(sigma) / 4
+        return c_skip, c_out, c_in, c_noise
+    
+    def get_schedule(self, num_steps, device):
+        """Get sigma schedule for sampling."""
+        step_indices = torch.arange(num_steps + 1, device=device)
+        t = step_indices / num_steps
+        sigma_max_inv_rho = self.sigma_max ** (1 / self.rho)
+        sigma_min_inv_rho = self.sigma_min ** (1 / self.rho)
+        sigmas = (sigma_max_inv_rho + t * (sigma_min_inv_rho - sigma_max_inv_rho)) ** self.rho
+        sigmas[-1] = 0
+        return sigmas
+
+
+def train_conditional_step(
+    model, diffusion, clean, clipped, mask, clip_level,
+    optimizer, device, lambda_freq=0.1, lambda_mask=0.1
+):
+    """
+    Training step for conditional declipping model.
+    
+    Loss = L_eps + λ_freq * L_freq + λ_mask * L_mask
+    """
+    model.train()
+    optimizer.zero_grad()
+    
+    B = clean.shape[0]
+    
+    # Sample noise level
+    sigma = diffusion.sample_sigma(B, device)
+    
+    # Add noise to clean signal
+    noise = torch.randn_like(clean)
+    x_noisy = clean + sigma.view(-1, 1, 1) * noise
+    
+    # Get scalings
+    c_skip, c_out, c_in, c_noise = diffusion.get_scalings(sigma)
+    c_in = c_in.view(-1, 1, 1)
+    c_skip = c_skip.view(-1, 1, 1)
+    c_out = c_out.view(-1, 1, 1)
+    
+    # Forward pass
+    eps_pred = model(
+        x_t=c_in * x_noisy,
+        t=c_noise,
+        y=clipped,
+        m=mask,
+        A=clip_level.squeeze(-1) if clip_level.ndim > 1 else clip_level,
+    )
+    
+    # Compute target
+    target = (clean - c_skip * x_noisy) / (c_out + 1e-8)
+    
+    # MSE loss
+    loss_eps = F.mse_loss(eps_pred, target)
+    
+    # Mask-weighted time loss (emphasize clipped regions)
+    if lambda_mask > 0:
+        x_pred = c_skip * x_noisy + c_out * eps_pred
+        error = x_pred - clean
+        
+        if mask.shape[1] == 1:
+            mask_exp = mask.expand(-1, 2, -1)
+        else:
+            mask_exp = mask
+        
+        weighted_error = mask_exp * (error ** 2)
+        loss_mask = weighted_error.sum() / (mask_exp.sum() + 1e-8)
+    else:
+        loss_mask = torch.tensor(0.0, device=device)
+    
+    total_loss = loss_eps + lambda_mask * loss_mask
+    
+    # Backward
+    total_loss.backward()
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+    optimizer.step()
+    
+    return total_loss.item(), loss_eps.item(), loss_mask.item()
+
+
+@torch.no_grad()
+def sample_conditional_ddim(
+    model, diffusion, clipped, mask, clip_level, num_steps=50,
+    cfg_scale=1.0, data_consistency=True, device=None
+):
+    """
+    DDIM sampling with the conditional model and data consistency.
+    
+    For unclipped samples (m=0), overwrites x_0 estimate with observation y.
+    """
+    if device is None:
+        device = clipped.device
+    
+    model.eval()
+    B, C, T = clipped.shape
+    
+    sigmas = diffusion.get_schedule(num_steps, device)
+    
+    # Initialize from noise
+    x = torch.randn(B, C, T, device=device) * sigmas[0]
+    
+    # Initialize unclipped regions from noised observation
+    if data_consistency:
+        noise = torch.randn_like(clipped) * sigmas[0]
+        y_noisy = clipped + noise
+        
+        if mask.shape[1] == 1:
+            m_exp = mask.expand(-1, C, -1)
+        else:
+            m_exp = mask
+        
+        x = torch.where(m_exp > 0.5, x, y_noisy)
+    
+    for i in tqdm(range(num_steps), desc="DDIM Sampling", leave=False):
+        t_curr = sigmas[i]
+        t_next = sigmas[i + 1]
+        
+        c_skip, c_out, c_in, c_noise = diffusion.get_scalings(t_curr.view(1))
+        c_in = c_in.view(1, 1, 1)
+        
+        # Get noise prediction with optional CFG
+        if cfg_scale != 1.0 and hasattr(model, 'forward_with_cfg'):
+            eps = model.forward_with_cfg(
+                c_in * x, c_noise.expand(B), clipped, mask,
+                clip_level.squeeze(-1) if clip_level.ndim > 1 else clip_level,
+                cfg_scale=cfg_scale
+            )
+        else:
+            eps = model(
+                c_in * x, c_noise.expand(B), clipped, mask,
+                clip_level.squeeze(-1) if clip_level.ndim > 1 else clip_level,
+            )
+        
+        # Compute x_0 estimate
+        x_0 = c_skip.view(1, 1, 1) * x + c_out.view(1, 1, 1) * eps
+        
+        # Data consistency: replace unclipped regions with observation
+        if data_consistency:
+            if mask.shape[1] == 1:
+                m_exp = mask.expand(-1, C, -1)
+            else:
+                m_exp = mask
+            x_0 = torch.where(m_exp > 0.5, x_0, clipped)
+        
+        # DDIM step
+        if t_next > 0:
+            direction = (x - x_0) / (t_curr + 1e-8)
+            x = x_0 + t_next * direction
+        else:
+            x = x_0
+    
+    return x
+
+
 # ============== PART 5: Declipping with Guidance (FIXED + CONSTELLATION) ==============
 
 def clip_signal(x, clip_level):
-    """Apply clipping."""
-    return torch.clamp(x, -clip_level, clip_level)
+    """
+    Apply MAGNITUDE-BASED clipping to complex IQ signal.
+    
+    If |x| = sqrt(I² + Q²) >= A, scale to magnitude A while preserving phase.
+    
+    Args:
+        x: Signal tensor, shape (B, 2, T) with [I, Q] channels
+        clip_level: Clipping threshold A
+    
+    Returns:
+        Clipped signal, shape (B, 2, T)
+    """
+    # Compute magnitude
+    I = x[:, 0, :]  # (B, T)
+    Q = x[:, 1, :]  # (B, T)
+    magnitude = torch.sqrt(I ** 2 + Q ** 2 + 1e-10)
+    
+    # Scale factor: min(1, A / |x|)
+    scale = torch.clamp(clip_level / magnitude, max=1.0)
+    
+    # Apply scaling
+    I_clipped = I * scale
+    Q_clipped = Q * scale
+    
+    return torch.stack([I_clipped, Q_clipped], dim=1)
+
+
+def get_clipping_mask(x, clip_level):
+    """
+    Get clipping mask based on magnitude.
+    
+    Args:
+        x: Signal tensor, shape (B, 2, T) with [I, Q] channels
+        clip_level: Clipping threshold A
+    
+    Returns:
+        Mask tensor (1 where |x| >= A), shape (B, 1, T)
+    """
+    magnitude = torch.sqrt(x[:, 0, :] ** 2 + x[:, 1, :] ** 2)
+    mask = (magnitude >= clip_level).float().unsqueeze(1)
+    return mask
 
 
 def get_constellation_real(modulation: str, device: torch.device) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -1255,11 +1485,25 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--warmup_steps", type=int, default=100)
     parser.add_argument("--num_test_samples", type=int, default=3)
-    parser.add_argument("--clip_level", type=float, default=0.7)
+    parser.add_argument("--clip_level", type=float, default=1.5,
+                        help="Clip level as multiple of signal std (higher=less clipping)")
     parser.add_argument("--guidance_weight", type=float, default=1.0)
     parser.add_argument("--sampling_steps", type=int, default=30)
     parser.add_argument("--output_dir", type=str, default="demo_results")
+    # New arguments for conditional model
+    parser.add_argument("--model_type", type=str, default="simple", 
+                        choices=["simple", "conditional"],
+                        help="Model type: 'simple' (unconditional + guidance) or 'conditional' (EVM-focused)")
+    parser.add_argument("--cfg_scale", type=float, default=1.5,
+                        help="Classifier-free guidance scale (for conditional model)")
+    parser.add_argument("--lambda_mask", type=float, default=0.1,
+                        help="Mask-weighted loss coefficient (for conditional model)")
     args = parser.parse_args()
+    
+    # Check if conditional model is available
+    if args.model_type == "conditional" and not HAS_CONDITIONAL_MODEL:
+        print("Error: Conditional model not available. Falling back to simple model.")
+        args.model_type = "simple"
     
     # Setup
     device = torch.device("cuda" if torch.cuda.is_available() 
@@ -1322,21 +1566,57 @@ def main():
     
     # ========== STEP 2: Train Diffusion Model ==========
     print("\n" + "="*60)
-    print("STEP 2: Train Diffusion Model")
+    print(f"STEP 2: Train Diffusion Model ({args.model_type.upper()})")
     print("="*60)
     
-    # Dataset
-    dataset = OFDMDataset(signal_length=args.signal_length, config=config)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size)
-    data_iter = iter(dataloader)
+    if args.model_type == "conditional":
+        # ========== CONDITIONAL MODEL (NEW) ==========
+        print("\nUsing CONDITIONAL declipping model with EVM-focused training")
+        
+        # Create declipping dataset (mild clipping: only top 8-25% of peaks)
+        declip_config = DeclipConfig(
+            signal_length=args.signal_length,
+            fft_size=256,
+            modulation='QPSK',
+            clip_ratio_min=0.75,  # Mild clipping: ~25% of peak clipped
+            clip_ratio_max=0.92,  # Very mild: ~8% of peak clipped
+        )
+        dataset = OFDMDeclipDataset(config=declip_config, seed=42)
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=args.batch_size, collate_fn=collate_declip_batch
+        )
+        data_iter = iter(dataloader)
+        
+        # Create conditional model
+        model = ConditionalUNet1DSimple(
+            in_channels=2,
+            out_channels=2,
+            base_channels=64,
+            depth=4,
+            embed_dim=512,
+            cond_drop_prob=0.1,  # CFG dropout
+        ).to(device)
+        
+        # Diffusion
+        diffusion = ConditionalDiffusion()
+        
+    else:
+        # ========== SIMPLE MODEL (ORIGINAL) ==========
+        print("\nUsing SIMPLE unconditional model with inference-time guidance")
+        
+        # Dataset
+        dataset = OFDMDataset(signal_length=args.signal_length, config=config)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size)
+        data_iter = iter(dataloader)
+        
+        # Model
+        model = SimpleUNet(in_ch=2, base_ch=32, depth=4).to(device)
+        
+        # Diffusion
+        diffusion = SimpleDiffusion()
     
-    # Model
-    model = SimpleUNet(in_ch=2, base_ch=32, depth=4).to(device)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"Model parameters: {num_params/1e6:.2f}M")
-    
-    # Diffusion
-    diffusion = SimpleDiffusion()
     
     # Optimizer with lower initial learning rate
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
@@ -1371,11 +1651,17 @@ def main():
         'data_indices': train_data_indices,
     }
     
-    # Training loop with constellation-aware loss (works on all devices)
+    # Training loop
     print(f"\nTraining for {args.train_steps} steps...")
-    print(f"  Using QPSK constellation loss on {device.type.upper()}")
+    if args.model_type == "conditional":
+        print(f"  Using conditional model with mask-weighted loss (λ_mask={args.lambda_mask})")
+    else:
+        print(f"  Using QPSK constellation loss on {device.type.upper()}")
     print(f"  LR warmup: {args.warmup_steps} steps, then cosine decay")
+    
     losses = []
+    losses_eps = []
+    losses_mask = []
     best_loss = float('inf')
     
     pbar = tqdm(range(args.train_steps), desc="Training")
@@ -1391,33 +1677,62 @@ def main():
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
         
-        # DISABLED: Constellation loss causes instability
-        # Just use pure MSE denoising loss - model learns OFDM structure from data
-        use_const = False
-        lambda_const = 0.0
-        
-        loss = train_step(
-            model, diffusion, batch, optimizer, device,
-            use_constellation_loss=use_const,
-            ofdm_params=ofdm_params,
-            lambda_const=lambda_const,
-        )
-        
-        # Skip NaN losses
-        if np.isnan(loss):
-            continue
+        if args.model_type == "conditional":
+            # Conditional model training
+            clean, clipped, mask, symbols, ofdm_params_batch, clip_level = batch
+            clean = clean.to(device)
+            clipped = clipped.to(device)
+            mask = mask.to(device)
+            clip_level = clip_level.to(device)
             
-        losses.append(loss)
-        best_loss = min(best_loss, loss)
-        
-        if step % 100 == 0:
-            avg_loss = np.mean(losses[-100:]) if losses else 0
-            pbar.set_postfix({
-                'loss': f'{avg_loss:.4f}',
-                'best': f'{best_loss:.4f}',
-                'lr': f'{lr:.1e}',
-                'λc': f'{lambda_const:.2f}'
-            })
+            loss, loss_eps, loss_mask = train_conditional_step(
+                model, diffusion, clean, clipped, mask, clip_level,
+                optimizer, device, lambda_freq=0.0, lambda_mask=args.lambda_mask
+            )
+            
+            if not np.isnan(loss):
+                losses.append(loss)
+                losses_eps.append(loss_eps)
+                losses_mask.append(loss_mask)
+                best_loss = min(best_loss, loss)
+            
+            if step % 100 == 0:
+                avg_loss = np.mean(losses[-100:]) if losses else 0
+                avg_eps = np.mean(losses_eps[-100:]) if losses_eps else 0
+                avg_mask = np.mean(losses_mask[-100:]) if losses_mask else 0
+                pbar.set_postfix({
+                    'loss': f'{avg_loss:.4f}',
+                    'eps': f'{avg_eps:.4f}',
+                    'mask': f'{avg_mask:.4f}',
+                    'lr': f'{lr:.1e}'
+                })
+        else:
+            # Simple model training (original)
+            use_const = False
+            lambda_const = 0.0
+            
+            loss = train_step(
+                model, diffusion, batch, optimizer, device,
+                use_constellation_loss=use_const,
+                ofdm_params=ofdm_params,
+                lambda_const=lambda_const,
+            )
+            
+            # Skip NaN losses
+            if np.isnan(loss):
+                continue
+                
+            losses.append(loss)
+            best_loss = min(best_loss, loss)
+            
+            if step % 100 == 0:
+                avg_loss = np.mean(losses[-100:]) if losses else 0
+                pbar.set_postfix({
+                    'loss': f'{avg_loss:.4f}',
+                    'best': f'{best_loss:.4f}',
+                    'lr': f'{lr:.1e}',
+                    'λc': f'{lambda_const:.2f}'
+                })
     
     # Plot training loss
     plt.figure(figsize=(10, 4))
@@ -1435,10 +1750,23 @@ def main():
     print(f"Final loss: {np.mean(losses[-100:]):.6f}")
     
     # Save model
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'config': {'signal_length': args.signal_length, 'base_ch': 32, 'depth': 4}
-    }, output_dir / "model.pt")
+    if args.model_type == "conditional":
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'model_type': 'conditional',
+            'config': {
+                'signal_length': args.signal_length, 
+                'base_channels': 64, 
+                'depth': 4,
+                'embed_dim': 512,
+            }
+        }, output_dir / "model.pt")
+    else:
+        torch.save({
+            'model_state_dict': model.state_dict(),
+            'model_type': 'simple',
+            'config': {'signal_length': args.signal_length, 'base_ch': 32, 'depth': 4}
+        }, output_dir / "model.pt")
     
     # ========== STEP 3: Test Declipping ==========
     print("\n" + "="*60)
@@ -1470,27 +1798,45 @@ def main():
         sdr = 10 * torch.log10(torch.mean(x_clean**2) / (torch.mean(distortion**2) + 1e-10))
         print(f"  Clipping SDR: {sdr.item():.2f} dB")
         
-        # Run declipping (FIXED + CONSTELLATION-AWARE)
-        print("  Running declipping (FIXED + CONSTELLATION guidance)...")
+        # Run declipping
         fft_size = test_metadata['fft_size']
         cp_length = int(test_metadata['cp_ratio'] * fft_size)
         num_symbols = test_metadata['num_symbols']
         modulation = test_metadata['modulation']
         
-        x_recon = sample_with_guidance(
-            model, diffusion, x_clipped, clip_level,
-            num_steps=args.sampling_steps,
-            guidance_weight=args.guidance_weight,
-            device=device,
-            use_fixed_loss=True,              # Use proper measurement loss
-            apply_ofdm_proj=True,             # Apply OFDM structure projection
-            ofdm_fft_size=fft_size,
-            ofdm_cp_length=cp_length,
-            ofdm_num_symbols=num_symbols,
-            modulation=modulation,            # Pass modulation for constellation
-            use_constellation_loss=True,      # Enable constellation guidance
-            lambda_constellation=1.0,         # Constellation loss weight
-        )
+        if args.model_type == "conditional":
+            # Conditional model: uses DDIM with data consistency
+            print("  Running declipping (CONDITIONAL model + DDIM)...")
+            
+            # Create mask based on MAGNITUDE (1 where |x_clean| >= A)
+            # Use clean signal to determine where clipping occurred
+            mask = get_clipping_mask(x_clean, clip_level)
+            clip_level_tensor = torch.tensor([clip_level], device=device)
+            
+            x_recon = sample_conditional_ddim(
+                model, diffusion, x_clipped, mask, clip_level_tensor,
+                num_steps=args.sampling_steps,
+                cfg_scale=args.cfg_scale,
+                data_consistency=True,
+                device=device,
+            )
+        else:
+            # Simple model: uses guidance-based sampling
+            print("  Running declipping (SIMPLE model + GUIDANCE)...")
+            x_recon = sample_with_guidance(
+                model, diffusion, x_clipped, clip_level,
+                num_steps=args.sampling_steps,
+                guidance_weight=args.guidance_weight,
+                device=device,
+                use_fixed_loss=True,              # Use proper measurement loss
+                apply_ofdm_proj=True,             # Apply OFDM structure projection
+                ofdm_fft_size=fft_size,
+                ofdm_cp_length=cp_length,
+                ofdm_num_symbols=num_symbols,
+                modulation=modulation,            # Pass modulation for constellation
+                use_constellation_loss=True,      # Enable constellation guidance
+                lambda_constellation=1.0,         # Constellation loss weight
+            )
         
         # Convert back to complex
         original_np = ch2_to_complex(x_clean[0].cpu().numpy())
