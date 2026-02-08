@@ -6,6 +6,8 @@ outputs/
 CQTdiffMatlab/database_ofdm/
 .claude/
 nul
+demo_results/
+demo_results_real_fixed/
 
 
 
@@ -13,6 +15,7 @@ nul
 *.pt
 *.pth
 *.wav
+*.png
 
 # Jupyter
 .ipynb_checkpoints/
