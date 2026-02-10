@@ -186,17 +186,15 @@ def main():
             metadata=metadata,
         )
         
-        # Demodulate and compute EVM with bias removal
+        # Demodulate and compute EVM with per-signal LS gain equalization (3GPP-style)
         ref_symbols = metadata['data_symbols'].flatten()
         orig_symbols_raw = demodulate_ofdm(signal, metadata).flatten()
         clip_symbols_raw = demodulate_ofdm(clipped, metadata).flatten()
         recon_symbols_raw = demodulate_ofdm(reconstructed, metadata).flatten()
 
-        # Estimate and remove bias from time-domain normalization
-        gain = estimate_channel_gain(ref_symbols, orig_symbols_raw)
-        orig_symbols = equalize_symbols(orig_symbols_raw, gain)
-        clip_symbols = equalize_symbols(clip_symbols_raw, gain)
-        recon_symbols = equalize_symbols(recon_symbols_raw, gain)
+        orig_symbols = equalize_symbols(orig_symbols_raw, estimate_channel_gain(ref_symbols, orig_symbols_raw))
+        clip_symbols = equalize_symbols(clip_symbols_raw, estimate_channel_gain(ref_symbols, clip_symbols_raw))
+        recon_symbols = equalize_symbols(recon_symbols_raw, estimate_channel_gain(ref_symbols, recon_symbols_raw))
 
         evm_orig = compute_evm(ref_symbols, orig_symbols)
         evm_clip = compute_evm(ref_symbols, clip_symbols)

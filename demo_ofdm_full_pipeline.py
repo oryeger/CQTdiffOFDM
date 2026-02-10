@@ -1875,14 +1875,16 @@ def main():
         clipped_symbols_raw = demodulate_ofdm(clipped_np, test_metadata).flatten()
         recon_symbols_raw = demodulate_ofdm(recon_np, test_metadata).flatten()
 
-        # Estimate and remove bias using the perfect (original) signal
-        # The normalization (signal / std) introduces a gain that FFT/IFFT doesn't undo
-        gain = estimate_channel_gain(ref_symbols, original_symbols_raw)
-        original_symbols = equalize_symbols(original_symbols_raw, gain)
-        clipped_symbols = equalize_symbols(clipped_symbols_raw, gain)
-        recon_symbols = equalize_symbols(recon_symbols_raw, gain)
+        # Per-signal LS gain equalization (3GPP-style EVM measurement)
+        # Each signal gets its own best-fit gain removed, separating gain error from distortion
+        gain_orig = estimate_channel_gain(ref_symbols, original_symbols_raw)
+        gain_clip = estimate_channel_gain(ref_symbols, clipped_symbols_raw)
+        gain_recon = estimate_channel_gain(ref_symbols, recon_symbols_raw)
+        original_symbols = equalize_symbols(original_symbols_raw, gain_orig)
+        clipped_symbols = equalize_symbols(clipped_symbols_raw, gain_clip)
+        recon_symbols = equalize_symbols(recon_symbols_raw, gain_recon)
 
-        print(f"  Bias gain: {np.abs(gain):.6f} (removed from all signals)")
+        print(f"  Gains - orig: {np.abs(gain_orig):.4f}, clip: {np.abs(gain_clip):.4f}, recon: {np.abs(gain_recon):.4f}")
         
         # Plot comparison
         evm_orig, evm_clip, evm_recon = plot_signal_comparison(
