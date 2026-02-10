@@ -48,7 +48,7 @@ except ImportError:
 class OFDMConfig:
     """OFDM configuration with randomization ranges."""
     fft_sizes: List[int] = field(default_factory=lambda: [256])  # Fixed FFT size
-    modulations: List[str] = field(default_factory=lambda: ["QPSK"])  # QPSK only
+    modulations: List[str] = field(default_factory=lambda: ["16QAM"])  # QPSK only
     cp_ratio_range: Tuple[float, float] = (0.125, 0.125)  # Fixed CP ratio
     guard_band_range: Tuple[float, float] = (0.1, 0.1)  # Fixed guard band
     num_symbols_range: Tuple[int, int] = (14, 14)  # Fixed number of symbols

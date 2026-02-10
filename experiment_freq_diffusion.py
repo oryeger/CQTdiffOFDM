@@ -250,12 +250,17 @@ def train(model, diffusion, config, signal_length, clip_range, num_steps, batch_
 # ============== Inference ==============
 
 @torch.no_grad()
-def denoise_symbols(model, diffusion, distorted, num_steps=50, device="cpu"):
+def denoise_symbols(model, diffusion, distorted, num_steps=50, device="cpu",
+                    s_churn=0.4):
     """
-    Denoise distorted frequency-domain symbols using diffusion.
+    Denoise distorted frequency-domain symbols using stochastic diffusion.
+
+    Uses EDM-style stochastic sampler with noise injection ("churn") to avoid
+    mode-averaging in multimodal distributions like 16QAM/64QAM.
 
     Args:
         distorted: (B, 2, N_sub) distorted symbols as conditioning
+        s_churn: Amount of stochastic noise injection (0 = deterministic, higher = more stochastic)
     Returns:
         (B, 2, N_sub) denoised symbols
     """
@@ -272,17 +277,25 @@ def denoise_symbols(model, diffusion, distorted, num_steps=50, device="cpu"):
         if sigma_t == 0:
             break
 
-        sigma_batch = sigma_t.expand(B)
+        # Stochastic noise injection (EDM "churn")
+        # Adds noise to help sampler explore modes instead of averaging them
+        gamma = min(s_churn / num_steps, np.sqrt(2) - 1)
+        sigma_hat = sigma_t * (1 + gamma)
+        if gamma > 0:
+            noise = torch.randn_like(x)
+            x = x + torch.sqrt(sigma_hat ** 2 - sigma_t ** 2) * noise
+
+        sigma_batch = sigma_hat.expand(B)
         c_skip, c_out, c_in = diffusion.get_scalings(sigma_batch)
 
         model_input = c_in[:, None, None] * x
         model_output = model(model_input, distorted, sigma_batch)
         x_0_hat = c_skip[:, None, None] * x + c_out[:, None, None] * model_output
 
-        # Euler step
+        # Euler step from sigma_hat to sigma_next
         if sigma_next > 0:
-            d = (x - x_0_hat) / sigma_t
-            x = x + (sigma_next - sigma_t) * d
+            d = (x - x_0_hat) / sigma_hat
+            x = x + (sigma_next - sigma_hat) * d
         else:
             x = x_0_hat
 
@@ -320,7 +333,9 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     config = OFDMConfig()
-    constellation = generate_qam_constellation("QPSK")
+    modulation = config.modulations[0]
+    constellation = generate_qam_constellation(modulation)
+    print(f"  Modulation: {modulation}")
 
     # ===== 1. Train =====
     print("=" * 60)
