@@ -369,12 +369,7 @@ def main():
     print("=" * 60)
 
     all_evm_clip = []
-    all_evm_hard = []
     all_evm_diff = []
-
-    fig, axes = plt.subplots(args.num_test, 4, figsize=(18, 4 * args.num_test))
-    if args.num_test == 1:
-        axes = axes[np.newaxis, :]
 
     for i in range(args.num_test):
         # Generate and clip
@@ -389,65 +384,38 @@ def main():
         clean_demod = demodulate_ofdm(signal, metadata)
         clip_demod = demodulate_ofdm(clipped, metadata)
 
-        # Equalize clipped symbols
+        # Equalize original and clipped symbols
+        gain_orig = estimate_channel_gain(ref_flat, clean_demod.flatten())
+        orig_eq = clean_demod.flatten() / gain_orig
+
         gain_clip = estimate_channel_gain(ref_flat, clip_demod.flatten())
         clip_eq = clip_demod / gain_clip
 
-        # -- Hard decision baseline --
-        hard_symbols = snap_to_constellation(clip_eq, constellation)
         evm_clip = compute_evm(ref_flat, clip_eq.flatten())
-        evm_hard = compute_evm(ref_flat, hard_symbols.flatten())
 
         # -- Diffusion declipping --
-        # Prepare input: distorted symbols per OFDM symbol
-        clip_2ch = torch.from_numpy(complex_to_2ch_np(clip_eq)).to(device)  # (num_sym, 2, N_sub)
+        clip_2ch = torch.from_numpy(complex_to_2ch_np(clip_eq)).to(device)
 
         denoised_2ch = denoise_symbols(
             model, diffusion, clip_2ch,
             num_steps=args.sampling_steps, device=device
         )
 
-        diff_symbols = ch2_to_complex_symbols(denoised_2ch)  # (num_sym, N_sub)
+        diff_symbols = ch2_to_complex_symbols(denoised_2ch)
         diff_flat = diff_symbols.flatten()
 
-        # Equalize diffusion output (should already be at constellation scale, but small correction)
         gain_diff = estimate_channel_gain(ref_flat, diff_flat)
         diff_eq = diff_flat / gain_diff
 
         evm_diff = compute_evm(ref_flat, diff_eq)
 
         all_evm_clip.append(evm_clip)
-        all_evm_hard.append(evm_hard)
         all_evm_diff.append(evm_diff)
 
-        print(f"  Signal {i+1}: clipped={evm_clip:.2f}%  hard={evm_hard:.2f}%  diffusion={evm_diff:.2f}%")
+        print(f"  Signal {i+1}: clipped={evm_clip:.2f}%  →  diffusion={evm_diff:.2f}%  "
+              f"(improvement: {evm_clip - evm_diff:.2f}%)")
 
-        # -- Plots --
-        # Clipped constellation
-        axes[i, 0].scatter(clip_eq.real.flatten(), clip_eq.imag.flatten(), alpha=0.4, s=8, c='red')
-        axes[i, 0].scatter(constellation.real, constellation.imag,
-                           s=100, c='black', marker='x', linewidths=2, zorder=5)
-        axes[i, 0].set_title(f'Clipped (EVM: {evm_clip:.1f}%)')
-        axes[i, 0].axis('equal'); axes[i, 0].set_xlim(-1.5, 1.5); axes[i, 0].set_ylim(-1.5, 1.5)
-        axes[i, 0].grid(True, alpha=0.3)
-
-        # Hard decision
-        axes[i, 1].scatter(hard_symbols.real.flatten(), hard_symbols.imag.flatten(), alpha=0.4, s=8, c='green')
-        axes[i, 1].scatter(constellation.real, constellation.imag,
-                           s=100, c='black', marker='x', linewidths=2, zorder=5)
-        axes[i, 1].set_title(f'Hard Decision (EVM: {evm_hard:.1f}%)')
-        axes[i, 1].axis('equal'); axes[i, 1].set_xlim(-1.5, 1.5); axes[i, 1].set_ylim(-1.5, 1.5)
-        axes[i, 1].grid(True, alpha=0.3)
-
-        # Diffusion
-        axes[i, 2].scatter(diff_eq.real, diff_eq.imag, alpha=0.4, s=8, c='blue')
-        axes[i, 2].scatter(constellation.real, constellation.imag,
-                           s=100, c='black', marker='x', linewidths=2, zorder=5)
-        axes[i, 2].set_title(f'Diffusion (EVM: {evm_diff:.1f}%)')
-        axes[i, 2].axis('equal'); axes[i, 2].set_xlim(-1.5, 1.5); axes[i, 2].set_ylim(-1.5, 1.5)
-        axes[i, 2].grid(True, alpha=0.3)
-
-        # Time domain: remodulate diffusion output and compare
+        # Remodulate diffusion output for time-domain plot
         diff_2d = diff_eq.reshape(ref_symbols.shape)
         recon_signal = remodulate_ofdm(diff_2d, metadata)
         if len(recon_signal) < args.signal_length:
@@ -456,30 +424,65 @@ def main():
             recon_signal = recon_signal[:args.signal_length]
         recon_signal = recon_signal / np.std(recon_signal) * np.std(signal)
 
-        t = np.arange(300)
-        axes[i, 3].plot(t, signal.real[:300], 'g-', alpha=0.5, label='Original')
-        axes[i, 3].plot(t, clipped.real[:300], 'r-', alpha=0.4, label='Clipped')
-        axes[i, 3].plot(t, recon_signal.real[:300], 'b--', alpha=0.7, label='Diffusion')
-        axes[i, 3].set_title(f'Time Domain (Signal {i+1})')
-        axes[i, 3].legend(fontsize=8)
-        axes[i, 3].grid(True, alpha=0.3)
+        # -- Plot: 2 rows x 3 cols per test signal --
+        fig, axes = plt.subplots(2, 3, figsize=(15, 8))
+        fig.suptitle(f'Signal {i+1} — Clip level: {args.clip_level}x std', fontsize=14)
 
-    plt.tight_layout()
-    plt.savefig(output_dir / "freq_diffusion_results.png", dpi=150)
-    plt.show()
+        # Row 1: Constellations (original, clipped, declipped)
+        axes[0, 0].scatter(orig_eq.real, orig_eq.imag, alpha=0.4, s=8, c='green')
+        axes[0, 0].scatter(constellation.real, constellation.imag,
+                           s=100, c='black', marker='x', linewidths=2, zorder=5)
+        axes[0, 0].set_title(f'Original (EVM: {compute_evm(ref_flat, orig_eq):.1f}%)')
+        axes[0, 0].axis('equal'); axes[0, 0].set_xlim(-1.5, 1.5); axes[0, 0].set_ylim(-1.5, 1.5)
+        axes[0, 0].grid(True, alpha=0.3)
+
+        axes[0, 1].scatter(clip_eq.real.flatten(), clip_eq.imag.flatten(), alpha=0.4, s=8, c='red')
+        axes[0, 1].scatter(constellation.real, constellation.imag,
+                           s=100, c='black', marker='x', linewidths=2, zorder=5)
+        axes[0, 1].set_title(f'Clipped (EVM: {evm_clip:.1f}%)')
+        axes[0, 1].axis('equal'); axes[0, 1].set_xlim(-1.5, 1.5); axes[0, 1].set_ylim(-1.5, 1.5)
+        axes[0, 1].grid(True, alpha=0.3)
+
+        axes[0, 2].scatter(diff_eq.real, diff_eq.imag, alpha=0.4, s=8, c='blue')
+        axes[0, 2].scatter(constellation.real, constellation.imag,
+                           s=100, c='black', marker='x', linewidths=2, zorder=5)
+        axes[0, 2].set_title(f'Declipped (EVM: {evm_diff:.1f}%)')
+        axes[0, 2].axis('equal'); axes[0, 2].set_xlim(-1.5, 1.5); axes[0, 2].set_ylim(-1.5, 1.5)
+        axes[0, 2].grid(True, alpha=0.3)
+
+        # Row 2: Time domain (original, clipped, declipped)
+        t = np.arange(300)
+        axes[1, 0].plot(t, signal.real[:300], 'g-', alpha=0.7)
+        axes[1, 0].plot(t, signal.imag[:300], 'g--', alpha=0.5)
+        axes[1, 0].set_title('Original (time domain)')
+        axes[1, 0].set_xlabel('Sample')
+        axes[1, 0].grid(True, alpha=0.3)
+
+        axes[1, 1].plot(t, clipped.real[:300], 'r-', alpha=0.7)
+        axes[1, 1].plot(t, clipped.imag[:300], 'r--', alpha=0.5)
+        axes[1, 1].axhline(y=clip_level, color='k', linestyle=':', alpha=0.3)
+        axes[1, 1].axhline(y=-clip_level, color='k', linestyle=':', alpha=0.3)
+        axes[1, 1].set_title('Clipped (time domain)')
+        axes[1, 1].set_xlabel('Sample')
+        axes[1, 1].grid(True, alpha=0.3)
+
+        axes[1, 2].plot(t, recon_signal.real[:300], 'b-', alpha=0.7)
+        axes[1, 2].plot(t, recon_signal.imag[:300], 'b--', alpha=0.5)
+        axes[1, 2].set_title('Declipped (time domain)')
+        axes[1, 2].set_xlabel('Sample')
+        axes[1, 2].grid(True, alpha=0.3)
+
+        plt.tight_layout()
+        plt.savefig(output_dir / f"freq_diffusion_signal_{i+1}.png", dpi=150)
+        plt.show()
 
     # ===== Summary =====
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
     print(f"  Avg EVM clipped:    {np.mean(all_evm_clip):.2f}%")
-    print(f"  Avg EVM hard dec:   {np.mean(all_evm_hard):.2f}%")
     print(f"  Avg EVM diffusion:  {np.mean(all_evm_diff):.2f}%")
-    print()
-    if np.mean(all_evm_diff) < np.mean(all_evm_hard):
-        print("  -> Diffusion beats hard decision!")
-    else:
-        print("  -> Hard decision still better. Try more training or higher-order QAM.")
+    print(f"  Avg improvement:    {np.mean(all_evm_clip) - np.mean(all_evm_diff):.2f}%")
 
 
 if __name__ == "__main__":
