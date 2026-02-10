@@ -21,6 +21,8 @@ from demo_ofdm_full_pipeline import (
     ch2_to_complex,
     demodulate_ofdm,
     compute_evm,
+    estimate_channel_gain,
+    equalize_symbols,
     SimpleUNet,
     SimpleDiffusion,
     sample_with_guidance,
@@ -184,12 +186,18 @@ def main():
             metadata=metadata,
         )
         
-        # Demodulate and compute EVM
-        orig_symbols = demodulate_ofdm(signal, metadata).flatten()
-        clip_symbols = demodulate_ofdm(clipped, metadata).flatten()
-        recon_symbols = demodulate_ofdm(reconstructed, metadata).flatten()
-        
+        # Demodulate and compute EVM with bias removal
         ref_symbols = metadata['data_symbols'].flatten()
+        orig_symbols_raw = demodulate_ofdm(signal, metadata).flatten()
+        clip_symbols_raw = demodulate_ofdm(clipped, metadata).flatten()
+        recon_symbols_raw = demodulate_ofdm(reconstructed, metadata).flatten()
+
+        # Estimate and remove bias from time-domain normalization
+        gain = estimate_channel_gain(ref_symbols, orig_symbols_raw)
+        orig_symbols = equalize_symbols(orig_symbols_raw, gain)
+        clip_symbols = equalize_symbols(clip_symbols_raw, gain)
+        recon_symbols = equalize_symbols(recon_symbols_raw, gain)
+
         evm_orig = compute_evm(ref_symbols, orig_symbols)
         evm_clip = compute_evm(ref_symbols, clip_symbols)
         evm_recon = compute_evm(ref_symbols, recon_symbols)

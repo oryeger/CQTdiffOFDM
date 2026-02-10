@@ -6,8 +6,8 @@
     "sdr": 11.462289810180664,
     "evm_original": 4.883330472451621,
     "evm_clipped": 23.63656959329385,
-    "evm_reconstructed": 19.722077811331122,
-    "improvement": 3.9144917819627274
+    "evm_reconstructed": 30.949675257296054,
+    "improvement": -7.3131056640022045
   },
   {
     "test_idx": 1,
@@ -16,8 +16,8 @@
     "sdr": 11.209212303161621,
     "evm_original": 5.382023680604057,
     "evm_clipped": 24.49145706675892,
-    "evm_reconstructed": 21.10621156248732,
-    "improvement": 3.385245504271598
+    "evm_reconstructed": 30.334023754787253,
+    "improvement": -5.8425666880283345
   },
   {
     "test_idx": 2,
@@ -26,7 +26,7 @@
     "sdr": 11.21737003326416,
     "evm_original": 5.3677198912371775,
     "evm_clipped": 24.587775761576104,
-    "evm_reconstructed": 20.800964441304835,
-    "improvement": 3.786811320271269
+    "evm_reconstructed": 30.272382773743225,
+    "improvement": -5.68460701216712
   }
 ]

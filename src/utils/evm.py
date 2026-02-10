@@ -82,6 +82,59 @@ def compute_evm(
         return float(evm)
 
 
+def estimate_channel_gain(
+    reference_symbols: Union[np.ndarray, torch.Tensor],
+    recovered_symbols: Union[np.ndarray, torch.Tensor],
+) -> Union[complex, torch.Tensor]:
+    """
+    Estimate complex channel gain via least-squares: recovered ≈ gain * reference.
+
+    Time-domain normalization (e.g., signal / std) introduces a scaling factor
+    that is not undone during FFT-based demodulation. This function estimates
+    that gain so we can equalize demodulated symbols and remove the EVM bias.
+
+    gain = sum(recovered * conj(reference)) / sum(|reference|^2)
+
+    Args:
+        reference_symbols: Original QAM constellation points (complex)
+        recovered_symbols: Recovered QAM constellation points (complex)
+
+    Returns:
+        Complex gain estimate
+    """
+    is_torch = isinstance(reference_symbols, torch.Tensor)
+
+    if is_torch:
+        gain = torch.sum(recovered_symbols * torch.conj(reference_symbols)) / (
+            torch.sum(torch.abs(reference_symbols) ** 2) + 1e-10
+        )
+        return gain
+    else:
+        reference_symbols = np.asarray(reference_symbols)
+        recovered_symbols = np.asarray(recovered_symbols)
+        gain = np.sum(recovered_symbols * np.conj(reference_symbols)) / (
+            np.sum(np.abs(reference_symbols) ** 2) + 1e-10
+        )
+        return complex(gain)
+
+
+def equalize_symbols(
+    symbols: Union[np.ndarray, torch.Tensor],
+    gain: Union[complex, torch.Tensor],
+) -> Union[np.ndarray, torch.Tensor]:
+    """
+    Remove channel gain bias from demodulated symbols.
+
+    Args:
+        symbols: Demodulated symbols to equalize
+        gain: Complex gain to divide out
+
+    Returns:
+        Equalized symbols
+    """
+    return symbols / gain
+
+
 def compute_evm_db(
     reference_symbols: Union[np.ndarray, torch.Tensor],
     recovered_symbols: Union[np.ndarray, torch.Tensor]

@@ -11,7 +11,7 @@ import numpy as np
 
 from src.sampler_ofdm import SamplerOFDMDeclipping
 from src.ofdm.ofdm_generator import OFDMParams, demodulate_ofdm
-from src.utils.evm import compute_evm, compute_evm_db
+from src.utils.evm import compute_evm, compute_evm_db, estimate_channel_gain, equalize_symbols
 from src.models.unet_ofdm import Unet_OFDM
 from src.utils.setup import load_ema_weights
 from src.sde import VE_Sde_Elucidating
@@ -176,9 +176,14 @@ class Exp_OFDM_Declipping:
         # Apply clipping
         y_clipped = torch.clip(signal, min=-clip_value, max=clip_value)
 
-        # Compute EVM before declipping
+        # Demodulate original signal and estimate bias gain
         num_ofdm_symbols = symbols.shape[0]
-        clipped_symbols = demodulate_ofdm(y_clipped[0].cpu().numpy(), ofdm_params, num_ofdm_symbols)
+        original_symbols = demodulate_ofdm(signal[0].cpu().numpy(), ofdm_params, num_ofdm_symbols)
+        gain = estimate_channel_gain(symbols, original_symbols)
+
+        # Compute EVM before declipping (with bias removed)
+        clipped_symbols_raw = demodulate_ofdm(y_clipped[0].cpu().numpy(), ofdm_params, num_ofdm_symbols)
+        clipped_symbols = equalize_symbols(clipped_symbols_raw, gain)
         evm_before = compute_evm(symbols, clipped_symbols)
         evm_db_before = compute_evm_db(symbols, clipped_symbols)
 
@@ -192,8 +197,9 @@ class Exp_OFDM_Declipping:
                 y_clipped, clip_value, symbols, ofdm_params
             )
 
-        # Compute EVM after declipping
-        declipped_symbols = demodulate_ofdm(x_hat[0].cpu().numpy(), ofdm_params, num_ofdm_symbols)
+        # Compute EVM after declipping (with bias removed)
+        declipped_symbols_raw = demodulate_ofdm(x_hat[0].cpu().numpy(), ofdm_params, num_ofdm_symbols)
+        declipped_symbols = equalize_symbols(declipped_symbols_raw, gain)
         evm_after = compute_evm(symbols, declipped_symbols)
         evm_db_after = compute_evm_db(symbols, declipped_symbols)
 

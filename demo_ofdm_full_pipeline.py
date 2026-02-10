@@ -201,6 +201,25 @@ def compute_evm(reference: np.ndarray, recovered: np.ndarray) -> float:
     return evm
 
 
+def estimate_channel_gain(reference: np.ndarray, recovered: np.ndarray) -> complex:
+    """
+    Estimate complex channel gain via least-squares: recovered ≈ gain * reference.
+
+    The time-domain normalization (signal / std) introduces a real scaling factor
+    that is not undone during demodulation. This function estimates that gain so
+    we can equalize all demodulated symbols and remove the bias.
+
+    gain = sum(recovered * conj(reference)) / sum(|reference|^2)
+    """
+    gain = np.sum(recovered * np.conj(reference)) / (np.sum(np.abs(reference)**2) + 1e-10)
+    return gain
+
+
+def equalize_symbols(symbols: np.ndarray, gain: complex) -> np.ndarray:
+    """Remove channel gain bias from demodulated symbols."""
+    return symbols / gain
+
+
 def complex_to_2ch(signal: np.ndarray) -> np.ndarray:
     """Convert complex to 2-channel [Re, Im]."""
     return np.stack([signal.real, signal.imag], axis=0).astype(np.float32)
@@ -1532,10 +1551,17 @@ def main():
     print(f"  Num OFDM symbols: {sample_metadata['num_symbols']}")
     print(f"  Data subcarriers: {sample_metadata['num_data_subcarriers']}")
     
-    # Demodulate and compute EVM (should be ~0 for clean signal)
+    # Demodulate and compute EVM (should be ~0 for clean signal after bias removal)
     sample_demod = demodulate_ofdm(sample_signal, sample_metadata)
-    sample_evm = compute_evm(sample_metadata['data_symbols'].flatten(), sample_demod.flatten())
-    print(f"  Clean signal EVM: {sample_evm:.4f}%")
+    ref_flat = sample_metadata['data_symbols'].flatten()
+    demod_flat = sample_demod.flatten()
+    sample_gain = estimate_channel_gain(ref_flat, demod_flat)
+    sample_demod_eq = equalize_symbols(demod_flat, sample_gain)
+    sample_evm_raw = compute_evm(ref_flat, demod_flat)
+    sample_evm = compute_evm(ref_flat, sample_demod_eq)
+    print(f"  Clean signal EVM (before bias removal): {sample_evm_raw:.4f}%")
+    print(f"  Clean signal EVM (after bias removal):  {sample_evm:.4f}%")
+    print(f"  Estimated gain: {np.abs(sample_gain):.6f} (phase: {np.angle(sample_gain)*180/np.pi:.2f} deg)")
     
     # Plot sample constellation
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
@@ -1548,9 +1574,9 @@ def main():
     axes[0].legend()
     axes[0].grid(True, alpha=0.3)
     
-    # Constellation
+    # Constellation (using equalized symbols)
     ref = sample_metadata['data_symbols'].flatten()
-    demod = sample_demod.flatten()
+    demod = sample_demod_eq
     axes[1].scatter(demod.real, demod.imag, alpha=0.5, s=10, c='blue', label='Demodulated')
     axes[1].scatter(ref.real, ref.imag, alpha=0.5, s=50, c='red', marker='x', label='Reference')
     axes[1].set_title(f'Constellation (EVM: {sample_evm:.2f}%)')
@@ -1844,9 +1870,19 @@ def main():
         recon_np = ch2_to_complex(x_recon[0].cpu().numpy())
         
         # Demodulate
-        original_symbols = demodulate_ofdm(original_np, test_metadata).flatten()
-        clipped_symbols = demodulate_ofdm(clipped_np, test_metadata).flatten()
-        recon_symbols = demodulate_ofdm(recon_np, test_metadata).flatten()
+        ref_symbols = test_metadata['data_symbols'].flatten()
+        original_symbols_raw = demodulate_ofdm(original_np, test_metadata).flatten()
+        clipped_symbols_raw = demodulate_ofdm(clipped_np, test_metadata).flatten()
+        recon_symbols_raw = demodulate_ofdm(recon_np, test_metadata).flatten()
+
+        # Estimate and remove bias using the perfect (original) signal
+        # The normalization (signal / std) introduces a gain that FFT/IFFT doesn't undo
+        gain = estimate_channel_gain(ref_symbols, original_symbols_raw)
+        original_symbols = equalize_symbols(original_symbols_raw, gain)
+        clipped_symbols = equalize_symbols(clipped_symbols_raw, gain)
+        recon_symbols = equalize_symbols(recon_symbols_raw, gain)
+
+        print(f"  Bias gain: {np.abs(gain):.6f} (removed from all signals)")
         
         # Plot comparison
         evm_orig, evm_clip, evm_recon = plot_signal_comparison(
