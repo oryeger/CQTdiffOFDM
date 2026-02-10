@@ -1499,18 +1499,18 @@ def plot_signal_comparison(
 def main():
     parser = argparse.ArgumentParser(description="OFDM Diffusion Demo")
     parser.add_argument("--signal_length", type=int, default=4096)
-    parser.add_argument("--train_steps", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--train_steps", type=int, default=5000)
+    parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--warmup_steps", type=int, default=100)
     parser.add_argument("--num_test_samples", type=int, default=3)
     parser.add_argument("--clip_level", type=float, default=1.5,
                         help="Clip level as multiple of signal std (higher=less clipping)")
     parser.add_argument("--guidance_weight", type=float, default=1.0)
-    parser.add_argument("--sampling_steps", type=int, default=30)
+    parser.add_argument("--sampling_steps", type=int, default=50)
     parser.add_argument("--output_dir", type=str, default="demo_results")
     # New arguments for conditional model
-    parser.add_argument("--model_type", type=str, default="simple", 
+    parser.add_argument("--model_type", type=str, default="conditional",
                         choices=["simple", "conditional"],
                         help="Model type: 'simple' (unconditional + guidance) or 'conditional' (EVM-focused)")
     parser.add_argument("--cfg_scale", type=float, default=1.5,
@@ -1599,13 +1599,16 @@ def main():
         # ========== CONDITIONAL MODEL (NEW) ==========
         print("\nUsing CONDITIONAL declipping model with EVM-focused training")
         
-        # Create declipping dataset (mild clipping: only top 8-25% of peaks)
+        # Create declipping dataset covering the full clipping range
+        # Test uses clip_level = 1.5 * std, and OFDM PAPR ~ 3.5x, so
+        # clip_ratio = 1.5/3.5 ≈ 0.43. Train from heavy to mild clipping.
         declip_config = DeclipConfig(
             signal_length=args.signal_length,
             fft_size=256,
+            cp_ratio=0.125,       # Match OFDMConfig (was 0.25, causing structure mismatch)
             modulation='QPSK',
-            clip_ratio_min=0.75,  # Mild clipping: ~25% of peak clipped
-            clip_ratio_max=0.92,  # Very mild: ~8% of peak clipped
+            clip_ratio_min=0.35,  # Heavy clipping (covers 1.5*std test case)
+            clip_ratio_max=0.95,  # Very mild clipping
         )
         dataset = OFDMDeclipDataset(config=declip_config, seed=42)
         dataloader = torch.utils.data.DataLoader(
