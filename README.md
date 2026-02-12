@@ -47,8 +47,8 @@ The model consists of:
 
 ## Authors
 
-- Ory Eger
 - Nicole Uzlaner
+- Ory Eger
 
 ## Repository
 
