@@ -1,55 +1,61 @@
-# CQTDiff: Solving audio inverse problems with a diffusion model
+# Frequency-Domain Diffusion for OFDM Declipping
 
-Official repository of the paper:
+A diffusion-model-based approach for reconstructing clipped OFDM waveforms at the receiver, treating clipped samples as corrupted entries and learning a prior over clean OFDM signals.
 
-> E. Moliner,J. Lehtinen and V. Välimäki, "Solving audio inverse problems with a diffusion model", submitted to IEEE International Conference on Acoustics, Speech, and Signal Processing (ICASSP), Rhodes, Greece May, 2023
+## Overview
 
+OFDM exhibits high peak-to-average power ratio (PAPR), motivating transmitter-side clipping to improve power amplifier efficiency. However, clipping introduces nonlinear distortion that degrades in-band constellation quality and increases Error Vector Magnitude (EVM). This project implements a diffusion model that operates on frequency-domain OFDM symbols to reconstruct clean waveforms from their clipped versions.
 
-Read the paper in [arXiv](https://arxiv.org/abs/2210.15228)
-Listen to our [audio samples](http://research.spa.aalto.fi/publications/papers/icassp23-cqt-diff/)
+### Key Features
 
-
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/eloimoliner/CQTdiff/blob/main/notebooks/demo.ipynb)
+- **Frequency-domain diffusion denoiser** operating on equalized OFDM data symbols
+- **EDM-style preconditioning** with continuous noise levels
+- **Conditional generation** using distorted symbols as conditioning input
+- **Warm-start sampling** from distorted symbols for faster convergence
+- Support for **QPSK** and **16QAM** modulations
 
 ## Setup
-This repository requires Python 3.8+ and Pytorch 1.10+. Other packages are listed in `requirements.txt`.
+
+This repository requires Python 3.8+ and PyTorch 1.10+. Other packages are listed in `requirements.txt`.
 
 To install the requirements in your environment:
+
 ```bash
 pip install -r requirements.txt
 ```
-To install the pre-trained weights and download a set of audio samples from the MAESTRO test set, run:
-```bash
-bash download_weights_and_examples.sh
-```
-## Training
-To retrain the model, run:
+
+## Usage
+
+### Training and Inference
+
+Run the frequency-domain diffusion experiment with:
 
 ```bash
-mkdir experiments/my_experiment
-python train.py  model_dir="experiments/my_experiment"
+python experiment_freq_diffusion.py --clip_level 1.0 --train_steps 10000 --sampling_steps 150 --s_churn 2.5
 ```
 
-To change the configuration, override the hydra parameters (listed in `conf/conf.yaml`)
 
-By default, the training scripts log to wandb. Set `log=False` if this is not desired.
-```bash
-python train.py log=False
-```
+## Architecture
 
-## Testing
+The model consists of:
 
-To easily test our method, we recommend running the [Colab Notebook](https://colab.research.google.com/github/eloimoliner/CQTdiff/blob/main/notebooks/demo.ipynb), where some of the experiments are implemented.
+1. **Input Pipeline**: Time signal → Clipping → FFT Demodulation → Equalization → Distorted Symbols
+2. **FreqDenoiser Model**: Conditional 1D residual network with sinusoidal sigma embedding
+3. **EDM Preconditioning**: Scale-correct combination of network output with noisy input
+4. **Sampling**: Stochastic Euler sampler with warm start from distorted symbols
 
-To run it locally, use:
-```bash
-python sample.py \
-        inference.load.load_mode="from_directory" \
-        inference.load.data_directory="$path_to_audio_files" \
-        inference.mode=$test_mode
-```
-The variable `$test_mode` selects the type of experiments. Examples are: "bandwidth_extension", "inpainting" or "declipping". There are many other parameters to select listed in the inference section from `conf/conf.yaml`. Some experiment examples are located in the directory `scripts/`.
 
-## Remarks
+## Authors
 
-The model is trained using the MAESTRO dataset, the performance is expected to decrease in out-of-distribution data.
+- Ory Eger
+- Nicole Uzlaner
+
+## Repository
+
+GitHub: https://github.com/oryeger/CQTdiffOFDM
+
+## References
+
+- E. Moliner, J. Lehtinen, and V. Välimäki, "Solving Audio Inverse Problems with a Diffusion Model (CQT-Diff)", arXiv:2210.15228, 2022.
+- Karras et al., "Elucidating the Design Space of Diffusion-Based Generative Models", arXiv:2206.00364, 2022.
+- J. Ho, A. Jain, and P. Abbeel, "Denoising Diffusion Probabilistic Models", arXiv:2006.11239, 2020.
